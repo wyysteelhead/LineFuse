@@ -1,0 +1,83 @@
+data:
+  input_size: [512, 512]
+  channels: 3
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  num_blur_variants: 5
+  blur_types:
+    - gaussian
+    - motion
+    - compression
+    - scan
+    - lowres
+    - text
+    - lines
+
+model:
+  type: "diffusion"  # or "unet_baseline"
+  unet:
+    in_channels: 3
+    out_channels: 3
+    block_out_channels: [128, 256, 512, 1024]
+    layers_per_block: 2
+  diffusion:
+    num_train_timesteps: 1000
+    beta_schedule: "linear"
+    prediction_type: "epsilon"
+
+training:
+  batch_size: 16
+  learning_rate: 1e-4
+  num_epochs: 100
+  save_every: 10
+  gradient_accumulation_steps: 1
+  mixed_precision: true
+  
+  optimizer:
+    type: "adamw"
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+    
+  scheduler:
+    type: "cosine"
+    warmup_steps: 1000
+    
+  loss:
+    l1_weight: 1.0
+    l2_weight: 0.5
+    perceptual_weight: 0.1
+
+inference:
+  num_inference_steps: 50
+  guidance_scale: 1.0
+  batch_size: 8
+
+evaluation:
+  metrics:
+    - psnr
+    - ssim
+    - mse
+    - mae
+    - peak_shift
+    - integral_error
+  
+  visualization:
+    save_comparisons: true
+    num_samples: 10
+    
+paths:
+  data_root: "./data"
+  output_root: "./outputs"
+  models_root: "./models"
+  logs_root: "./logs"
+  
+device:
+  use_gpu: true
+  device_id: 0
+  mixed_precision: true
+
+logging:
+  level: "INFO"
+  save_logs: true
+  log_interval: 100
