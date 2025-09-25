@@ -166,10 +166,11 @@ def create_comprehensive_blur_demo():
                                 kernel_range = gauss_config['kernel_size_range'][1]
                                 sigma_range = gauss_config['sigma_range'][1]
                             kernel_size = kernel_range[1]  # 使用上限
-                            sigma = sigma_range[1]  # 使用上限
+                            sigma_range = [sigma_range[1], sigma_range[1]]  # 使用上限
+                            print(sigma_range)
                             result_image = blur_generator.gaussian_blur(result_image,
-                                                                       kernel_size=kernel_size, sigma=sigma)
-                            effect_log.append(f"gaussian(kernel={kernel_size}, sigma={sigma:.2f})")
+                                                                       kernel_size=kernel_size, sigma_range=sigma_range)
+                            effect_log.append(f"gaussian(kernel={kernel_size}, sigma={sigma_range[1]:.2f})")
                         else:
                             result_image = blur_generator.apply_single_blur_effect(result_image, effect_name)
                             effect_log.append(f"gaussian(default)")

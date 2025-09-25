@@ -761,7 +761,7 @@ class BlurGenerator:
             if kernel_size % 2 == 0:
                 kernel_size += 1
             sigma = 0.3 + 1.2 * intensity  # 0.3-1.5 instead of 0.5-2.5
-            result = self.gaussian_blur(result, kernel_size=kernel_size, sigma=sigma)
+            result = self.gaussian_blur(result, kernel_size=kernel_size, sigma_range=(sigma, sigma))
         elif effect_type == 'motion':
             # 根据强度调整运动模糊 - 降低强度
             kernel_size = max(3, int(3 + 5 * intensity))  # 3-8 instead of 3-11
