@@ -978,7 +978,7 @@ class BlurGenerator:
         # 可选的额外模糊效果（不包括基础必加效果）
         additional_effects = [
             'gaussian', 'motion', 'compression', 'scan', 'lowres',
-            'text', 'lines', 'print_scan', 'localblur', 'threshold',
+            'text', 'lines', 'print_scan', 'localblur',  # 暂时移除threshold
             'scan_lines', 'spectral_degradation'
         ]
 

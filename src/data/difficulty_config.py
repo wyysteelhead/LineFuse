@@ -48,31 +48,31 @@ DIFFICULTY_CONFIG = {
             'range_percentage': (0.2, 0.35)
         },
         'threshold': {
-            'threshold_range': ((90, 110), (85, 115))  # 保守的阈值范围
+            'threshold_range': ((50, 80), (45, 85))  # 更低的阈值，保护线条区域
         }
     },
 
     'medium': {
         'name': '中等',
-        'base_intensity_range': (0.08, 0.18),  # 降低基础强度 0.15-0.25 → 0.08-0.18
-        'additional_intensity_range': (0.15, 0.25),  # 降低额外效果强度 0.2-0.35 → 0.15-0.25
-        'additional_effects_count': (0, 1),  # 减少额外效果 (1, 2) → (0, 1)
+        'base_intensity_range': (0.06, 0.15),  # 进一步降低基础强度 0.08-0.18 → 0.06-0.15
+        'additional_intensity_range': (0.12, 0.22),  # 降低额外效果强度 0.15-0.25 → 0.12-0.22
+        'additional_effects_count': (0, 1),  # 保持较少的额外效果
         'line_width': 0.3,
 
         'regional_thinning': {
-            'num_regions': (1, 1),  # 固定1个区域 (1, 2) → (1, 1)
-            'thinning_strength': (0.15, 0.3),  # 进一步降低 0.25-0.5 → 0.15-0.3
+            'num_regions': (0, 1),  # 允许跳过 (1, 1) → (0, 1)
+            'thinning_strength': (0.1, 0.25),  # 进一步降低 0.15-0.3 → 0.1-0.25
             'color_variation': False  # 暂时禁用颜色变化
         },
         'line_discontinuity': {
-            'gap_density': (0.04, 0.08),  # 进一步降低 0.08-0.15 → 0.04-0.08
-            'gap_size_range': ((1, 1), (1, 2))  # 减小间隙 (1, 2), (1, 3) → (1, 1), (1, 2)
+            'gap_density': (0.02, 0.06),  # 进一步降低 0.04-0.08 → 0.02-0.06
+            'gap_size_range': ((1, 1), (1, 1))  # 最小间隙 (1, 1), (1, 2) → (1, 1), (1, 1)
         },
         'print_noise': {
-            'noise_intensity': (0.005, 0.015)  # 进一步降低 0.01-0.03 → 0.005-0.015
+            'noise_intensity': (0.003, 0.012)  # 进一步降低 0.005-0.015 → 0.003-0.012
         },
         'background_variation': {
-            'intensity': (0.08, 0.15)  # 降低背景变化 0.15-0.25 → 0.08-0.15
+            'intensity': (0.06, 0.12)  # 进一步降低 0.08-0.15 → 0.06-0.12
         },
 
         'gaussian_blur': {
@@ -93,7 +93,7 @@ DIFFICULTY_CONFIG = {
             'range_percentage': (0.25, 0.35)  # 减少范围 0.3-0.45 → 0.25-0.35
         },
         'threshold': {
-            'threshold_range': ((80, 120), (75, 125))  # 稍微宽松的阈值范围
+            'threshold_range': ((60, 90), (50, 95))  # 更低的阈值，确保不影响线条抗锯齿
         }
     },
 
@@ -138,7 +138,7 @@ DIFFICULTY_CONFIG = {
             'range_percentage': (0.3, 0.45)  # 减少范围 0.4-0.6 → 0.3-0.45
         },
         'threshold': {
-            'threshold_range': ((85, 115), (80, 120))  # 更安全的阈值范围
+            'threshold_range': ((70, 100), (60, 105))  # 更低的阈值，避免线条消失
         }
     }
 }
