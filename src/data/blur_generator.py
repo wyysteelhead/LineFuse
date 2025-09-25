@@ -635,12 +635,12 @@ class BlurGenerator:
 
     def regional_line_thinning(self, image: np.ndarray,
                              num_regions: int = 4,
-                             region_size_range: tuple = (80, 200),
+                             region_size_range: tuple = (120, 300),
                              thinning_strength: float = 1.2,
                              color_variation: bool = True) -> np.ndarray:
         """
-        Apply aggressive line thinning with color variation to specific regions
-        对特定区域进行强化线条细化处理 - 包含线条颜色变化
+        Apply dramatic line thinning with strong visual effects to specific regions
+        对特定区域进行戏剧性的线条细化处理 - 确保变化明显可见
         """
         result = image.copy()
         h, w = result.shape[:2]
@@ -650,7 +650,7 @@ class BlurGenerator:
             return result
 
         for i in range(num_regions):
-            # Random region location and size - 更大的区域以确保效果明显
+            # 更大的区域以确保效果显著
             region_w = random.randint(region_size_range[0], region_size_range[1])
             region_h = random.randint(region_size_range[0], region_size_range[1])
             region_x = random.randint(0, max(1, w - region_w))
@@ -659,80 +659,99 @@ class BlurGenerator:
             # Extract region
             region = result[region_y:region_y+region_h, region_x:region_x+region_w].copy()
 
-            # 多重细化处理以获得更明显的效果
-            processed_region = region.copy()
+            # 🎯 戏剧性线条细化 - 三种强化方案随机选择
+            effect_type = random.choice(['ultra_thin', 'broken_lines', 'faded_lines'])
 
-            # 1. 温和腐蚀操作 - 轻微让线条变细
-            erosion_kernel_size = max(1, int(2 * thinning_strength))  # 减少kernel大小
-            erosion_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
-                                                     (erosion_kernel_size, erosion_kernel_size))
-            eroded_region = cv2.erode(processed_region, erosion_kernel, iterations=1)  # 减少迭代次数
+            if effect_type == 'ultra_thin':
+                # 1. 超细线条效果 - 强化腐蚀让线条显著变细
+                kernel_size = max(3, int(4 * thinning_strength))  # 更大的kernel
+                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+                processed_region = cv2.erode(region, kernel, iterations=2)  # 更多迭代
+                # 轻微膨胀避免完全消失
+                small_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+                processed_region = cv2.dilate(processed_region, small_kernel, iterations=1)
 
-            # 2. 膨胀恢复大部分结构
-            processed_region = cv2.dilate(eroded_region, erosion_kernel, iterations=1)
+            elif effect_type == 'broken_lines':
+                # 2. 断线效果 - 创建明显的间隙
+                processed_region = region.copy()
+                if len(processed_region.shape) == 3:
+                    gray_region = cv2.cvtColor(processed_region, cv2.COLOR_BGR2GRAY)
+                else:
+                    gray_region = processed_region.copy()
 
-            # 3. 额外的局部细化 - 随机移除一些像素让线条更不连续
-            if len(processed_region.shape) == 3:
-                gray_region = cv2.cvtColor(processed_region, cv2.COLOR_BGR2GRAY)
-            else:
-                gray_region = processed_region.copy()
+                # 找到线条像素
+                line_pixels = np.where(gray_region < 180)  # 更宽泛的线条检测
+                if len(line_pixels[0]) > 0:
+                    # 移除大量像素创造断线效果
+                    removal_ratio = 0.25 * thinning_strength  # 更高的移除比例
+                    num_pixels_to_remove = int(len(line_pixels[0]) * removal_ratio)
+                    if num_pixels_to_remove > 0:
+                        indices = random.sample(range(len(line_pixels[0])),
+                                              min(num_pixels_to_remove, len(line_pixels[0])))
+                        # 创建更大的间隙
+                        for idx in indices:
+                            y_pos, x_pos = line_pixels[0][idx], line_pixels[1][idx]
+                            gap_size = random.randint(3, 7)  # 更大的间隙
+                            y1 = max(0, y_pos - gap_size//2)
+                            y2 = min(processed_region.shape[0], y_pos + gap_size//2)
+                            x1 = max(0, x_pos - gap_size//2)
+                            x2 = min(processed_region.shape[1], x_pos + gap_size//2)
+                            if len(processed_region.shape) == 3:
+                                processed_region[y1:y2, x1:x2] = [255, 255, 255]
+                            else:
+                                processed_region[y1:y2, x1:x2] = 255
 
-            # 找到线条像素并随机移除一些
-            line_pixels = np.where(gray_region < 200)
-            if len(line_pixels[0]) > 0:
-                # 随机移除少量线条像素 - 降低比例
-                num_pixels_to_remove = int(len(line_pixels[0]) * 0.05 * thinning_strength)
-                if num_pixels_to_remove > 0:
-                    indices_to_remove = random.sample(range(len(line_pixels[0])),
-                                                     min(num_pixels_to_remove, len(line_pixels[0])))
+            else:  # 'faded_lines'
+                # 3. 褪色线条效果 - 让部分线条变得非常浅
+                processed_region = region.copy()
+                if len(processed_region.shape) == 3:
+                    gray_region = cv2.cvtColor(processed_region, cv2.COLOR_BGR2GRAY)
+                else:
+                    gray_region = processed_region.copy()
 
-                    for idx in indices_to_remove:
-                        y_pos, x_pos = line_pixels[0][idx], line_pixels[1][idx]
-                        # 创建小的白色斑点
-                        if len(processed_region.shape) == 3:
-                            processed_region[y_pos:y_pos+2, x_pos:x_pos+2] = [255, 255, 255]
-                        else:
-                            processed_region[y_pos:y_pos+2, x_pos:x_pos+2] = 255
+                # 找到线条区域并褪色
+                fade_mask = gray_region < 180
+                fade_intensity = 80 + int(60 * thinning_strength)  # 褪色强度
+                if len(processed_region.shape) == 3:
+                    for c in range(3):
+                        channel = processed_region[:, :, c].astype(np.float32)
+                        channel[fade_mask] += fade_intensity
+                        processed_region[:, :, c] = np.clip(channel, 0, 255).astype(np.uint8)
+                else:
+                    processed_region = processed_region.astype(np.float32)
+                    processed_region[fade_mask] += fade_intensity
+                    processed_region = np.clip(processed_region, 0, 255).astype(np.uint8)
 
-            # 4. 添加线条颜色变化效果
+            # 添加线条颜色变化效果（如果启用）
             if color_variation and len(processed_region.shape) == 3:
-                # 找到线条区域（暗像素）
                 if len(processed_region.shape) == 3:
                     gray_region = cv2.cvtColor(processed_region, cv2.COLOR_BGR2GRAY)
                 else:
                     gray_region = processed_region.copy()
 
                 line_mask = gray_region < 200
-
                 if np.any(line_mask):
-                    # 生成随机颜色变化 - 模拟墨水颜色不均或扫描色差
+                    # 更强的颜色变化效果
                     color_shift = random.choice([
-                        [random.randint(-15, 15), random.randint(-15, 15), random.randint(-15, 15)],  # 整体色偏
-                        [random.randint(-25, 0), 0, 0],      # 红色减少（墨水褪色）
-                        [0, random.randint(-25, 0), 0],      # 绿色减少
-                        [0, 0, random.randint(-25, 0)],      # 蓝色减少
-                        [random.randint(-20, -5), random.randint(-20, -5), random.randint(-20, -5)], # 整体变暗
+                        [random.randint(-30, 30), random.randint(-30, 30), random.randint(-30, 30)],  # 更强色偏
+                        [random.randint(-40, 0), 0, 0],      # 红色大量减少
+                        [0, random.randint(-40, 0), 0],      # 绿色大量减少
+                        [0, 0, random.randint(-40, 0)],      # 蓝色大量减少
+                        [random.randint(-35, -10), random.randint(-35, -10), random.randint(-35, -10)], # 大幅变暗
                     ])
 
-                    # 应用颜色变化到线条区域
                     processed_region = processed_region.astype(np.float32)
                     for c in range(3):
                         channel = processed_region[:, :, c]
                         channel[line_mask] += color_shift[c]
                     processed_region = np.clip(processed_region, 0, 255).astype(np.uint8)
 
-            # 5. 添加轻微的高斯模糊让效果看起来更自然
-            processed_region = cv2.GaussianBlur(processed_region, (3, 3), 0.8)
-
-            # 6. 强化混合 - 让细化效果更明显
-            alpha = 0.7 + 0.2 * min(thinning_strength, 1.0)  # 更强的混合比例
+            # 戏剧性混合 - 让效果非常明显
+            alpha = 0.85 + 0.1 * min(thinning_strength, 1.0)  # 非常强的混合比例
             final_region = cv2.addWeighted(region, 1-alpha, processed_region, alpha, 0)
 
-            # Put back the heavily thinned region with color variation
+            # 应用到结果图像
             result[region_y:region_y+region_h, region_x:region_x+region_w] = final_region
-
-            # 添加调试信息（实际使用中可能需要移除）
-            # print(f"  应用区域细化: 区域{i+1} 位置({region_x},{region_y}) 大小({region_w}x{region_h})")
 
         return result
 
