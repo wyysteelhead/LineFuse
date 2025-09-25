@@ -14,6 +14,252 @@ import numpy as np
 from data.clean_chart_generator import CleanChartGenerator
 from data.dataset_builder import DatasetBuilder
 
+def create_comprehensive_blur_demo():
+    """
+    创建完整的模糊效果演示
+    展示每种模糊效果在easy/medium/hard难度下的上下限效果
+    """
+    print("=== LineFuse 模糊效果完整演示 ===")
+
+    # 检查依赖
+    try:
+        from data.blur_generator import BlurGenerator
+        from data.clean_chart_generator import CleanChartGenerator
+        from data.difficulty_config import get_difficulty_config, get_random_value_in_range
+        import cv2
+    except ImportError as e:
+        print(f"❌ 缺少必要依赖: {e}")
+        print("请运行: pip install opencv-python")
+        return False
+
+    # 检查CSV数据
+    csv_dir = Path('dataset/csv_data')
+    if not csv_dir.exists() or not list(csv_dir.glob("*.csv")):
+        print(f"❌ 未找到CSV数据目录或文件: {csv_dir}")
+        print("请先确保有可用的CSV数据文件")
+        return False
+
+    # 选择第一个CSV文件作为演示样本
+    csv_file = list(csv_dir.glob("*.csv"))[0]
+    print(f"📊 使用样本: {csv_file.name}")
+
+    # 创建演示目录
+    demo_dir = Path("blur_effects_demo")
+    demo_dir.mkdir(exist_ok=True)
+
+    # 生成基础清晰图表
+    print("📈 生成基础清晰图表...")
+    base_generator = CleanChartGenerator(
+        figure_size=(512, 512),
+        line_width=0.5,
+        enable_style_diversity=False  # 演示使用固定样式便于对比
+    )
+    base_image_path = demo_dir / "00_base_clean.png"
+    base_generator.process_csv_to_chart(csv_file, base_image_path, pixel_perfect=True)
+    print(f"✅ 基础图表已保存: {base_image_path}")
+
+    # 定义要演示的所有效果类型
+    demo_effects = {
+        # 基础必备效果
+        'background_variation': '背景颜色变化',
+        'line_thinning_fading': '线条变细和变淡',
+        'line_discontinuity': '虚线断续效果',
+        'print_noise': '打印噪点',
+
+        # 额外模糊效果
+        'gaussian': '高斯模糊',
+        'motion': '运动模糊',
+        'compression': 'JPEG压缩伪影',
+        'scan': '打印扫描模拟',
+        'lowres': '低分辨率',
+        'text': '文本干扰',
+        'lines': '线条干扰',
+        'print_scan': '高级打印扫描',
+        'localblur': '局部模糊退化',
+        'scan_lines': '扫描线条伪影',
+        'spectral_degradation': '光谱退化'
+    }
+
+    difficulties = ['easy', 'medium', 'hard']
+
+    # 加载基础图像
+    base_image = cv2.imread(str(base_image_path))
+    if base_image is None:
+        print(f"❌ 无法加载基础图像: {base_image_path}")
+        return False
+
+    print(f"\n🎨 开始生成 {len(demo_effects)} 种效果 × 3个难度 × 2个强度 = {len(demo_effects) * 6} 张演示图...")
+
+    total_generated = 0
+
+    for effect_name, effect_desc in demo_effects.items():
+        print(f"\n📝 {effect_desc} ({effect_name}):")
+
+        for difficulty in difficulties:
+            # 获取该难度的配置
+            config = get_difficulty_config(difficulty)
+            blur_generator = BlurGenerator(difficulty=difficulty)
+
+            # 为每个难度生成最小和最大强度的效果
+            for intensity_type in ['min', 'max']:
+                output_name = f"{effect_name}_{difficulty}_{intensity_type}.png"
+                output_path = demo_dir / output_name
+
+                try:
+                    result_image = base_image.copy()
+                    effect_log = []
+
+                    if effect_name == 'background_variation':
+                        # 背景变化效果
+                        bg_config = config['background_variation']
+                        if intensity_type == 'min':
+                            intensity = bg_config['intensity'][0]
+                        else:
+                            intensity = bg_config['intensity'][1]
+                        result_image = blur_generator.background_color_variation(result_image, intensity=intensity)
+                        effect_log.append(f"background_variation(intensity={intensity:.3f})")
+
+                    elif effect_name == 'line_thinning_fading':
+                        # 线条变细和变淡效果
+                        line_config = config['line_thinning_fading']
+                        if intensity_type == 'min':
+                            thin_strength = line_config['thinning_strength'][0]
+                            fade_strength = line_config['fading_strength'][0]
+                        else:
+                            thin_strength = line_config['thinning_strength'][1]
+                            fade_strength = line_config['fading_strength'][1]
+                        result_image = blur_generator.simple_line_thinning_and_fading(
+                            result_image, thinning_strength=thin_strength, fading_strength=fade_strength)
+                        effect_log.append(f"line_thinning_fading(thin={thin_strength:.3f}, fade={fade_strength:.3f})")
+
+                    elif effect_name == 'line_discontinuity':
+                        # 虚线效果
+                        disc_config = config['line_discontinuity']
+                        if intensity_type == 'min':
+                            gap_density = disc_config['gap_density'][0]
+                            gap_size_range = (disc_config['gap_size_range'][0][0], disc_config['gap_size_range'][0][1])
+                        else:
+                            gap_density = disc_config['gap_density'][1]
+                            gap_size_range = (disc_config['gap_size_range'][1][0], disc_config['gap_size_range'][1][1])
+                        result_image = blur_generator.line_discontinuity_blur(
+                            result_image, gap_density=gap_density, gap_size_range=gap_size_range)
+                        effect_log.append(f"line_discontinuity(density={gap_density:.3f}, size={gap_size_range})")
+
+                    elif effect_name == 'print_noise':
+                        # 打印噪点效果
+                        noise_config = config['print_noise']
+                        if intensity_type == 'min':
+                            noise_intensity = noise_config['noise_intensity'][0]
+                        else:
+                            noise_intensity = noise_config['noise_intensity'][1]
+                        result_image = blur_generator.add_print_noise(result_image, intensity=noise_intensity)
+                        effect_log.append(f"print_noise(intensity={noise_intensity:.3f})")
+
+                    # 配置化额外效果处理
+                    elif effect_name == 'gaussian':
+                        if 'gaussian_blur' in config:
+                            gauss_config = config['gaussian_blur']
+                            if intensity_type == 'min':
+                                kernel_range = gauss_config['kernel_size_range'][0]
+                                sigma_range = gauss_config['sigma_range'][0]
+                            else:
+                                kernel_range = gauss_config['kernel_size_range'][1]
+                                sigma_range = gauss_config['sigma_range'][1]
+                            kernel_size = kernel_range[1]  # 使用上限
+                            sigma = sigma_range[1]  # 使用上限
+                            result_image = blur_generator.gaussian_blur(result_image,
+                                                                       kernel_size=kernel_size, sigma=sigma)
+                            effect_log.append(f"gaussian(kernel={kernel_size}, sigma={sigma:.2f})")
+                        else:
+                            result_image = blur_generator.apply_single_blur_effect(result_image, effect_name)
+                            effect_log.append(f"gaussian(default)")
+
+                    elif effect_name == 'motion':
+                        if 'motion_blur' in config:
+                            motion_config = config['motion_blur']
+                            if intensity_type == 'min':
+                                kernel_range = motion_config['kernel_size_range'][0]
+                            else:
+                                kernel_range = motion_config['kernel_size_range'][1]
+                            kernel_size = kernel_range[1]  # 使用上限
+                            result_image = blur_generator.motion_blur(result_image, kernel_size=kernel_size)
+                            effect_log.append(f"motion(kernel={kernel_size})")
+                        else:
+                            result_image = blur_generator.apply_single_blur_effect(result_image, effect_name)
+                            effect_log.append(f"motion(default)")
+
+                    elif effect_name == 'compression':
+                        if 'compression' in config:
+                            comp_config = config['compression']
+                            if intensity_type == 'min':
+                                quality_range = comp_config['quality_range'][0]
+                            else:
+                                quality_range = comp_config['quality_range'][1]
+                            quality = quality_range[0]  # 使用下限（更低质量=更强压缩）
+                            result_image = blur_generator.compression_blur(result_image, quality=quality)
+                            effect_log.append(f"compression(quality={quality})")
+                        else:
+                            result_image = blur_generator.apply_single_blur_effect(result_image, effect_name)
+                            effect_log.append(f"compression(default)")
+
+                    elif effect_name == 'lowres':
+                        if 'lowres' in config:
+                            lowres_config = config['lowres']
+                            if intensity_type == 'min':
+                                factor_range = lowres_config['downscale_factor_range'][0]
+                            else:
+                                factor_range = lowres_config['downscale_factor_range'][1]
+                            factor = factor_range[1]  # 使用上限（更大下采样=更模糊）
+                            result_image = blur_generator.low_resolution_blur(result_image, downscale_factor=factor)
+                            effect_log.append(f"lowres(factor={factor})")
+                        else:
+                            result_image = blur_generator.apply_single_blur_effect(result_image, effect_name)
+                            effect_log.append(f"lowres(default)")
+
+                    elif effect_name == 'spectral_degradation':
+                        if 'spectral_degradation' in config:
+                            spec_config = config['spectral_degradation']
+                            if intensity_type == 'min':
+                                strength = spec_config['degradation_strength'][0]
+                                range_pct = spec_config['range_percentage'][0]
+                            else:
+                                strength = spec_config['degradation_strength'][1]
+                                range_pct = spec_config['range_percentage'][1]
+                            # 这里需要计算x_range
+                            w = result_image.shape[1]
+                            range_width = int(w * range_pct)
+                            x_start = random.randint(int(w * 0.1), int(w * 0.5))
+                            x_range = (x_start, min(x_start + range_width, w))
+                            result_image = blur_generator.spectral_line_degradation(result_image, x_range=x_range)
+                            effect_log.append(f"spectral_degradation(strength={strength:.2f}, range={range_pct:.2f})")
+                        else:
+                            result_image = blur_generator.apply_single_blur_effect(result_image, effect_name)
+                            effect_log.append(f"spectral_degradation(default)")
+
+                    else:
+                        # 其他效果使用默认参数
+                        result_image = blur_generator.apply_single_blur_effect(result_image, effect_name)
+                        effect_log.append(f"{effect_name}(default)")
+
+                    # 保存结果
+                    cv2.imwrite(str(output_path), result_image)
+                    total_generated += 1
+
+                    print(f"  ✅ {difficulty.upper()} {intensity_type}: {', '.join(effect_log)} → {output_name}")
+
+                except Exception as e:
+                    print(f"  ❌ {difficulty.upper()} {intensity_type}: 生成失败 - {str(e)}")
+
+    print(f"\n🎉 演示完成! 共生成 {total_generated} 张图片")
+    print(f"📁 所有演示图片保存在: {demo_dir.absolute()}")
+    print(f"\n📋 演示内容:")
+    print(f"  • 基础清晰图: 00_base_clean.png")
+    print(f"  • 每种效果的6个变体: [效果名]_[难度]_[强度].png")
+    print(f"  • 难度: easy/medium/hard")
+    print(f"  • 强度: min(最小)/max(最大)")
+
+    return True
+
 def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset",
                     difficulty_levels: list = ["easy", "medium", "hard"],
                     enable_style_diversity: bool = True,
@@ -603,13 +849,7 @@ def main():
             learning_rate=args.lr
         )
     elif args.command == 'demo':
-        print("=== LineFuse 快速演示 ===")
-        generate_dataset(
-            num_samples=10,
-            output_dir="demo_dataset",
-            enable_style_diversity=True,
-            style_diversity_level=0.9  # 演示时使用高多样性
-        )
+        create_comprehensive_blur_demo()
     else:
         parser.print_help()
 

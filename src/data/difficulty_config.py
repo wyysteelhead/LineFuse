@@ -16,6 +16,7 @@ DIFFICULTY_CONFIG = {
         'line_thinning_fading': {
             'thinning_strength': (0.1, 0.2),  # Easy: 轻微变细
             'fading_strength': (0.1, 0.2),    # Easy: 轻微变淡
+            'num_regions': (0, 1),            # Easy: 0-1个区域，保持大部分正常
         },
         'line_discontinuity': {
             'gap_density': (0.01, 0.05),  # 进一步降低 0.03-0.08 → 0.01-0.05
@@ -59,8 +60,9 @@ DIFFICULTY_CONFIG = {
         'line_width': 0.3,
 
         'line_thinning_fading': {
-            'thinning_strength': (0.3, 0.5),  # Medium: 中等变细
-            'fading_strength': (0.3, 0.5),    # Medium: 中等变淡
+            'thinning_strength': (0.2, 0.4),  # Medium: 中等变细
+            'fading_strength': (0.2, 0.4),    # Medium: 中等变淡
+            'num_regions': (1, 2),            # Medium: 1-2个区域
         },
         'line_discontinuity': {
             'gap_density': (0.06, 0.15),  # 提高虚线密度 0.02-0.06 → 0.06-0.15
@@ -103,8 +105,9 @@ DIFFICULTY_CONFIG = {
         'line_width': 0.15,
 
         'line_thinning_fading': {
-            'thinning_strength': (0.5, 0.8),  # Hard: 强烈变细
-            'fading_strength': (0.5, 0.8),    # Hard: 强烈变淡
+            'thinning_strength': (0.3, 0.6),  # Hard: 较强变细但不过度
+            'fading_strength': (0.3, 0.6),    # Hard: 较强变淡但不过度
+            'num_regions': (1, 3),            # Hard: 1-3个区域
         },
         'line_discontinuity': {
             'gap_density': (0.15, 0.3),  # 提高虚线密度 0.06-0.15 → 0.15-0.3

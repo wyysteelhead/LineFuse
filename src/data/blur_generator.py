@@ -633,51 +633,112 @@ class BlurGenerator:
         # print(f"  虚线效果处理: 创建了 {gaps_created} 个小间隙")
         return result
 
-    def simple_line_thinning_and_fading(self, image: np.ndarray,
-                                       thinning_strength: float = 0.3,
-                                       fading_strength: float = 0.3) -> np.ndarray:
+    def regional_line_variations(self, image: np.ndarray,
+                                   thinning_strength: float = 0.3,
+                                   fading_strength: float = 0.3,
+                                   num_regions: int = 2) -> np.ndarray:
         """
-        Simple line thinning and fading effects
-        简单的线条变细和变淡效果 - 作用于整个图像的线条
+        Regional line thinning and fading effects
+        区域性线条变细和变淡效果 - 只影响少数区域，保持主体线条正常
 
         Args:
             thinning_strength: 线条变细强度 (0-1)
             fading_strength: 线条变淡强度 (0-1)
+            num_regions: 影响的区域数量
+        """
+        result = image.copy()
+        h, w = result.shape[:2]
+
+        # 如果区域数量为0，直接返回原图
+        if num_regions == 0:
+            return result
+
+        for i in range(num_regions):
+            # 创建较小的随机区域 - 只影响图像的一小部分
+            region_w = random.randint(60, 150)  # 较小的区域
+            region_h = random.randint(60, 150)
+            region_x = random.randint(0, max(1, w - region_w))
+            region_y = random.randint(0, max(1, h - region_h))
+
+            # 提取区域
+            region = result[region_y:region_y+region_h, region_x:region_x+region_w].copy()
+
+            # 随机选择应用变细或变淡（不是都应用）
+            effect_type = random.choice(['thinning', 'fading'])
+
+            if effect_type == 'thinning' and thinning_strength > 0:
+                # 轻微的线条变细
+                kernel_size = max(1, min(3, int(1 + 2 * thinning_strength)))  # 1-3像素
+                if kernel_size % 2 == 0:
+                    kernel_size += 1
+                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+                thinned_region = cv2.erode(region, kernel, iterations=1)  # 只1次迭代
+
+                # 轻微混合，保持大部分原始线条
+                alpha = 0.3 + 0.3 * thinning_strength  # 最多0.6的混合比例
+                processed_region = cv2.addWeighted(region, 1-alpha, thinned_region, alpha, 0)
+
+            elif effect_type == 'fading' and fading_strength > 0:
+                # 轻微的线条变淡
+                processed_region = region.copy().astype(np.float32)
+
+                # 找到线条区域
+                if len(region.shape) == 3:
+                    gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
+                else:
+                    gray = region.copy()
+
+                line_mask = gray < 200
+
+                if np.any(line_mask):
+                    # 轻微的变淡效果
+                    fade_amount = int(20 + 30 * fading_strength)  # 20-50的轻微变淡
+
+                    if len(processed_region.shape) == 3:
+                        for c in range(3):
+                            processed_region[:, :, c][line_mask] += fade_amount
+                    else:
+                        processed_region[line_mask] += fade_amount
+
+                processed_region = np.clip(processed_region, 0, 255).astype(np.uint8)
+            else:
+                processed_region = region
+
+            # 将处理后的区域放回原图
+            result[region_y:region_y+region_h, region_x:region_x+region_w] = processed_region
+
+        return result
+
+    def apply_single_blur_effect(self, image: np.ndarray, effect_type: str) -> np.ndarray:
+        """
+        应用单个模糊效果 - 用于演示目的
         """
         result = image.copy()
 
-        # 1. 线条变细 - 使用温和的腐蚀
-        if thinning_strength > 0:
-            kernel_size = max(1, int(2 + 3 * thinning_strength))  # 1-5像素的kernel
-            if kernel_size % 2 == 0:  # 确保是奇数
-                kernel_size += 1
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
-            iterations = max(1, int(1 + 2 * thinning_strength))  # 1-3次迭代
-            result = cv2.erode(result, kernel, iterations=iterations)
-
-        # 2. 线条变淡 - 让线条颜色变浅
-        if fading_strength > 0:
-            # 找到线条区域（暗像素）
-            if len(result.shape) == 3:
-                gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
-            else:
-                gray = result.copy()
-
-            # 线条mask（比背景暗的像素）
-            line_mask = gray < 200
-
-            if np.any(line_mask):
-                # 计算变淡强度 - 让线条向白色靠近
-                fade_amount = int(80 * fading_strength)  # 0-80的变淡量
-
-                result = result.astype(np.float32)
-                if len(result.shape) == 3:
-                    for c in range(3):
-                        result[:, :, c][line_mask] += fade_amount
-                else:
-                    result[line_mask] += fade_amount
-
-                result = np.clip(result, 0, 255).astype(np.uint8)
+        if effect_type == 'gaussian':
+            result = self.gaussian_blur(result)
+        elif effect_type == 'motion':
+            result = self.motion_blur(result)
+        elif effect_type == 'compression':
+            result = self.compression_blur(result)
+        elif effect_type == 'scan':
+            result = self.print_scan_simulation(result)
+        elif effect_type == 'lowres':
+            result = self.low_resolution_blur(result)
+        elif effect_type == 'text':
+            result = self.add_text_interference(result)
+        elif effect_type == 'lines':
+            result = self.add_line_interference(result)
+        elif effect_type == 'print_scan':
+            result = self.print_scan_simulation(result)
+        elif effect_type == 'localblur':
+            result = self.local_blur_degradation(result)
+        elif effect_type == 'scan_lines':
+            result = self.add_scan_lines(result)
+        elif effect_type == 'spectral_degradation':
+            result = self.spectral_line_degradation(result)
+        else:
+            print(f"未知效果类型: {effect_type}")
 
         return result
 
@@ -869,15 +930,17 @@ class BlurGenerator:
             applied_effects.append(effect_log)
             result = self.background_color_variation(result, intensity=bg_intensity)
 
-            # 2. 线条变细和变淡 - 使用配置化参数
+            # 2. 线条变细和变淡 - 区域性轻微变化
             line_config = config['line_thinning_fading']
             thinning_strength = get_random_value_in_range(line_config['thinning_strength'])
             fading_strength = get_random_value_in_range(line_config['fading_strength'])
-            effect_log = f"line_thinning_fading(thin={thinning_strength:.3f}, fade={fading_strength:.3f})"
+            num_regions = get_random_value_in_range(line_config['num_regions'], is_int=True)
+            effect_log = f"line_variations(thin={thinning_strength:.3f}, fade={fading_strength:.3f}, regions={num_regions})"
             applied_effects.append(effect_log)
-            result = self.simple_line_thinning_and_fading(result,
-                                                        thinning_strength=thinning_strength,
-                                                        fading_strength=fading_strength)
+            result = self.regional_line_variations(result,
+                                                 thinning_strength=thinning_strength,
+                                                 fading_strength=fading_strength,
+                                                 num_regions=num_regions)
 
             # 3. 线段断断续续 - 使用配置化参数
             discontinuity_config = config['line_discontinuity']
