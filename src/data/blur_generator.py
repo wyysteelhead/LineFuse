@@ -56,7 +56,7 @@ class BlurGenerator:
         
         return cv2.filter2D(image, -1, kernel)
     
-    def compression_artifacts(self, image: np.ndarray, quality_range: tuple = (10, 50)) -> np.ndarray:
+    def compression_artifacts(self, image: np.ndarray, quality_range: tuple = (30, 70)) -> np.ndarray:
         quality = random.randint(quality_range[0], quality_range[1])
         
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
@@ -65,14 +65,20 @@ class BlurGenerator:
         
         return decoded_img
     
-    def print_scan_simulation(self, image: np.ndarray) -> np.ndarray:
-        transform = A.Compose([
-            A.Affine(
+    def print_scan_simulation(self, image: np.ndarray, enable_geometric_distortion: bool = False) -> np.ndarray:
+        transforms = []
+
+        # 可选的几何变形（旋转、平移、缩放）
+        if enable_geometric_distortion:
+            transforms.append(A.Affine(
                 translate_percent={'x': (-0.05, 0.05), 'y': (-0.05, 0.05)},
                 scale=(0.9, 1.1),
                 rotate=(-2, 2),
                 p=0.8
-            ),
+            ))
+
+        # 始终应用的效果：噪声和亮度对比度
+        transforms.extend([
             A.GaussNoise(var_limit=(10.0, 50.0), mean=0, p=0.7),
             A.RandomBrightnessContrast(
                 brightness_limit=0.1,
@@ -80,7 +86,8 @@ class BlurGenerator:
                 p=0.8
             )
         ])
-        
+
+        transform = A.Compose(transforms)
         augmented = transform(image=image)
         return augmented['image']
     
@@ -150,7 +157,7 @@ class BlurGenerator:
         elif blur_type == 'compression':
             result_image = self.compression_artifacts(result_image)
         elif blur_type == 'scan':
-            result_image = self.print_scan_simulation(result_image)
+            result_image = self.print_scan_simulation(result_image, enable_geometric_distortion=False)
         elif blur_type == 'lowres':
             result_image = self.low_resolution_upscale(result_image)
         elif blur_type == 'text':
@@ -182,8 +189,8 @@ class BlurGenerator:
         }
 
     def print_scan_blur(self, image: np.ndarray,
-                        edge_blur_sigma: float = 2.0,
-                        contrast_reduction: float = 0.8) -> np.ndarray:
+                        edge_blur_sigma: float = 1.2,
+                        contrast_reduction: float = 0.9) -> np.ndarray:
         """模拟真实的打印扫描效果：线条变细+边缘模糊+对比度降低"""
 
         # 1. 强烈的高斯模糊，模拟打印的羽化效果
@@ -192,8 +199,8 @@ class BlurGenerator:
         # 2. 轻度模糊，保持一些线条结构
         lightly_blurred = cv2.GaussianBlur(image, (0, 0), edge_blur_sigma * 0.3)
 
-        # 3. 混合得到羽化但还能看到的线条
-        result = cv2.addWeighted(lightly_blurred, 0.3, heavily_blurred, 0.7, 0)
+        # 3. 混合得到羽化但还能看到的线条 - 降低重度模糊比例
+        result = cv2.addWeighted(lightly_blurred, 0.5, heavily_blurred, 0.5, 0)
 
         # 4. 降低对比度，模拟真实打印的灰度效果
         result = result.astype(np.float32)
@@ -235,7 +242,7 @@ class BlurGenerator:
         return result
 
     def threshold_artifacts(self, image: np.ndarray,
-                           threshold_range: tuple = (100, 180)) -> np.ndarray:
+                           threshold_range: tuple = (80, 120)) -> np.ndarray:
         """Apply threshold artifacts to simulate binary conversion effects"""
         # Convert to grayscale if color image
         if len(image.shape) == 3:
@@ -1008,7 +1015,7 @@ class BlurGenerator:
                     result = self.compression_artifacts(result, quality_range=quality_range)
                 elif effect == 'scan':
                     effect_details.append("print_scan_simulation")
-                    result = self.print_scan_simulation(result)
+                    result = self.print_scan_simulation(result, enable_geometric_distortion=False)
                 elif effect == 'lowres':
                     # 使用配置化的低分辨率参数
                     lowres_config = config['lowres']
@@ -1030,8 +1037,11 @@ class BlurGenerator:
                     effect_details.append("local_blur")
                     result = self.local_blur(result)
                 elif effect == 'threshold':
-                    effect_details.append("threshold_artifacts")
-                    result = self.threshold_artifacts(result)
+                    # 使用配置化的阈值参数
+                    threshold_config = config['threshold']
+                    threshold_range = get_random_range_in_ranges(threshold_config['threshold_range'], is_int=True)
+                    effect_details.append(f"threshold(range={threshold_range})")
+                    result = self.threshold_artifacts(result, threshold_range=threshold_range)
                 elif effect == 'scan_lines':
                     effect_details.append("scan_lines")
                     result = self.add_scan_lines(result)

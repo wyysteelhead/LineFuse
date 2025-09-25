@@ -46,6 +46,9 @@ DIFFICULTY_CONFIG = {
         'spectral_degradation': {
             'degradation_strength': (0.1, 0.2),
             'range_percentage': (0.2, 0.35)
+        },
+        'threshold': {
+            'threshold_range': ((90, 110), (85, 115))  # 保守的阈值范围
         }
     },
 
@@ -88,6 +91,9 @@ DIFFICULTY_CONFIG = {
         'spectral_degradation': {
             'degradation_strength': (0.1, 0.25),  # 减少强度 0.2-0.35 → 0.1-0.25
             'range_percentage': (0.25, 0.35)  # 减少范围 0.3-0.45 → 0.25-0.35
+        },
+        'threshold': {
+            'threshold_range': ((80, 120), (75, 125))  # 稍微宽松的阈值范围
         }
     },
 
@@ -122,7 +128,7 @@ DIFFICULTY_CONFIG = {
             'kernel_size_range': ((5, 12), (8, 16))
         },
         'compression': {
-            'quality_range': ((10, 35), (20, 50))
+            'quality_range': ((30, 60), (40, 70))  # 提高质量范围，避免线条完全消失
         },
         'lowres': {
             'downscale_factor_range': ((3, 5), (4, 6))
@@ -130,6 +136,9 @@ DIFFICULTY_CONFIG = {
         'spectral_degradation': {
             'degradation_strength': (0.3, 0.5),
             'range_percentage': (0.4, 0.6)
+        },
+        'threshold': {
+            'threshold_range': ((80, 120), (70, 130))  # 更宽松但仍安全的阈值范围
         }
     }
 }
