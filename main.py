@@ -115,6 +115,17 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
     total_blur_count = 0
     total_clean_count = 0
 
+    # 初始化模糊效果日志文件
+    log_file = Path(output_dir) / 'blur_effects_log.txt'
+    with open(log_file, 'w', encoding='utf-8') as f:
+        f.write("LineFuse 模糊效果详细日志\n")
+        f.write("=" * 50 + "\n")
+        f.write(f"生成时间: {__import__('datetime').datetime.now()}\n")
+        f.write(f"样本数量: {num_samples}\n")
+        f.write(f"难度级别: {', '.join(difficulty_levels)}\n")
+        f.write(f"样式多样化: {'启用' if enable_style_diversity else '禁用'}\n")
+        f.write("=" * 50 + "\n")
+
     # 为每个难度级别生成配对的清晰图和模糊图
     for difficulty in difficulty_levels:
         config = difficulty_config[difficulty]
@@ -226,15 +237,53 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
                                 base_image = blur_generator.load_image(base_chart_file)
 
                                 # 1. 应用基础退化效果（每张都有）
-                                base_degraded = blur_generator.apply_base_degradation(base_image)
+                                base_degraded, base_effects_log = blur_generator.apply_base_degradation(base_image)
 
                                 # 2. 随机添加额外效果
                                 final_result = blur_generator.apply_random_additional_blur(base_degraded)
+
+                                # 3. 记录详细的模糊效果日志
+                                blur_log = {
+                                    'file': blur_output_name,
+                                    'difficulty': difficulty,
+                                    'variant': variant,
+                                    'csv_source': csv_file.name,
+                                    'base_effects': base_effects_log,
+                                    'additional_effects': final_result.get('additional_effects_details', []),
+                                    'total_effects': len(base_effects_log) + final_result.get('num_additional', 0)
+                                }
+
+                                # 打印简化日志
+                                print(f"       📝 {blur_output_name}:")
+                                print(f"          Base: {', '.join(base_effects_log)}")
+                                if final_result.get('additional_effects_details'):
+                                    print(f"          Extra: {', '.join(final_result['additional_effects_details'])}")
+                                else:
+                                    print(f"          Extra: None")
 
                                 # 保存结果
                                 import cv2
                                 cv2.imwrite(str(blur_output_path), final_result['image'])
                                 difficulty_blur_count += 1
+
+                                # 保存详细日志到文件
+                                log_file = Path(output_dir) / 'blur_effects_log.txt'
+                                with open(log_file, 'a', encoding='utf-8') as f:
+                                    f.write(f"\n=== {blur_output_name} ===\n")
+                                    f.write(f"Difficulty: {difficulty}\n")
+                                    f.write(f"CSV Source: {csv_file.name}\n")
+                                    f.write(f"Variant: {variant}\n")
+                                    f.write(f"\nBase Effects:\n")
+                                    for effect in base_effects_log:
+                                        f.write(f"  - {effect}\n")
+                                    f.write(f"\nAdditional Effects:\n")
+                                    if final_result.get('additional_effects_details'):
+                                        for effect in final_result['additional_effects_details']:
+                                            f.write(f"  - {effect}\n")
+                                    else:
+                                        f.write(f"  - None\n")
+                                    f.write(f"\nTotal Effects: {blur_log['total_effects']}\n")
+                                    f.write("-" * 50 + "\n")
 
                             except Exception as e:
                                 print(f"    🚨 BLUR GENERATION FAILED for {blur_output_name}:")

@@ -51,43 +51,43 @@ DIFFICULTY_CONFIG = {
 
     'medium': {
         'name': '中等',
-        'base_intensity_range': (0.15, 0.25),
-        'additional_intensity_range': (0.2, 0.35),
-        'additional_effects_count': (1, 2),
+        'base_intensity_range': (0.08, 0.18),  # 降低基础强度 0.15-0.25 → 0.08-0.18
+        'additional_intensity_range': (0.15, 0.25),  # 降低额外效果强度 0.2-0.35 → 0.15-0.25
+        'additional_effects_count': (0, 1),  # 减少额外效果 (1, 2) → (0, 1)
         'line_width': 0.3,
 
         'regional_thinning': {
-            'num_regions': (1, 2),
-            'thinning_strength': (0.25, 0.5),  # 降低 0.4-0.7 → 0.25-0.5
-            'color_variation': True
+            'num_regions': (1, 1),  # 固定1个区域 (1, 2) → (1, 1)
+            'thinning_strength': (0.15, 0.3),  # 进一步降低 0.25-0.5 → 0.15-0.3
+            'color_variation': False  # 暂时禁用颜色变化
         },
         'line_discontinuity': {
-            'gap_density': (0.08, 0.15),  # 降低 0.1-0.2 → 0.08-0.15
-            'gap_size_range': ((1, 2), (1, 3))
+            'gap_density': (0.04, 0.08),  # 进一步降低 0.08-0.15 → 0.04-0.08
+            'gap_size_range': ((1, 1), (1, 2))  # 减小间隙 (1, 2), (1, 3) → (1, 1), (1, 2)
         },
         'print_noise': {
-            'noise_intensity': (0.01, 0.03)  # 降低 0.02-0.05 → 0.01-0.03
+            'noise_intensity': (0.005, 0.015)  # 进一步降低 0.01-0.03 → 0.005-0.015
         },
         'background_variation': {
-            'intensity': (0.15, 0.25)
+            'intensity': (0.08, 0.15)  # 降低背景变化 0.15-0.25 → 0.08-0.15
         },
 
         'gaussian_blur': {
-            'kernel_size_range': ((3, 6), (5, 9)),
-            'sigma_range': ((0.5, 1.0), (0.8, 1.5))
+            'kernel_size_range': ((3, 5), (3, 7)),  # 减小kernel (3, 6), (5, 9) → (3, 5), (3, 7)
+            'sigma_range': ((0.3, 0.6), (0.5, 1.0))  # 减小sigma (0.5, 1.0), (0.8, 1.5) → (0.3, 0.6), (0.5, 1.0)
         },
         'motion_blur': {
-            'kernel_size_range': ((3, 7), (5, 10))
+            'kernel_size_range': ((3, 5), (3, 7))  # 减小kernel (3, 7), (5, 10) → (3, 5), (3, 7)
         },
         'compression': {
-            'quality_range': ((25, 50), (40, 65))
+            'quality_range': ((40, 70), (50, 80))  # 提高质量 (25, 50), (40, 65) → (40, 70), (50, 80)
         },
         'lowres': {
-            'downscale_factor_range': ((2, 4), (3, 5))
+            'downscale_factor_range': ((2, 3), (2, 4))  # 减少下采样 (2, 4), (3, 5) → (2, 3), (2, 4)
         },
         'spectral_degradation': {
-            'degradation_strength': (0.2, 0.35),
-            'range_percentage': (0.3, 0.45)
+            'degradation_strength': (0.1, 0.25),  # 减少强度 0.2-0.35 → 0.1-0.25
+            'range_percentage': (0.25, 0.35)  # 减少范围 0.3-0.45 → 0.25-0.35
         }
     },
 

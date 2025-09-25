@@ -894,7 +894,7 @@ class BlurGenerator:
         result = np.clip(result, 0, 255).astype(np.uint8)
         return result
 
-    def apply_base_degradation(self, image: np.ndarray) -> np.ndarray:
+    def apply_base_degradation(self, image: np.ndarray) -> tuple:
         """
         Apply base degradation effects that should be present in every image:
         - Background color variation (lighting/printing conditions)
@@ -902,6 +902,9 @@ class BlurGenerator:
         - Line discontinuity (dashed line effect)
         - Print noise artifacts
         对每张图片都应用的基础退化效果组合 - 使用配置化的强度范围
+
+        Returns:
+            tuple: (degraded_image, effects_log)
         """
         result = image.copy()
         config = self.difficulty_config
@@ -910,14 +913,16 @@ class BlurGenerator:
         try:
             # 1. 底色变化 (模拟光线/打印条件差异) - 使用配置化强度
             bg_intensity = get_random_value_in_range(config['background_variation']['intensity'])
-            applied_effects.append(f"background_variation(intensity={bg_intensity:.3f})")
+            effect_log = f"background_variation(intensity={bg_intensity:.3f})"
+            applied_effects.append(effect_log)
             result = self.background_color_variation(result, intensity=bg_intensity)
 
             # 2. 线段粗细不一致 + 颜色变化 - 使用配置化参数
             thinning_config = config['regional_thinning']
             num_regions = get_random_value_in_range(thinning_config['num_regions'], is_int=True)
             thinning_strength = get_random_value_in_range(thinning_config['thinning_strength'])
-            applied_effects.append(f"regional_thinning(regions={num_regions}, strength={thinning_strength:.3f}, color_var={thinning_config['color_variation']})")
+            effect_log = f"regional_thinning(regions={num_regions}, strength={thinning_strength:.3f}, color_var={thinning_config['color_variation']})"
+            applied_effects.append(effect_log)
             result = self.regional_line_thinning(result,
                                                num_regions=num_regions,
                                                thinning_strength=thinning_strength,
@@ -932,14 +937,16 @@ class BlurGenerator:
             if gap_size_range[0] > gap_size_range[1]:
                 gap_size_range = (gap_size_range[1], gap_size_range[0])
 
-            applied_effects.append(f"line_discontinuity(density={gap_density:.3f}, gap_range={gap_size_range})")
+            effect_log = f"line_discontinuity(density={gap_density:.3f}, gap_range={gap_size_range})"
+            applied_effects.append(effect_log)
             result = self.line_discontinuity_blur(result,
                                                 gap_density=gap_density,
                                                 gap_size_range=gap_size_range)
 
             # 4. 打印噪点效果 - 使用配置化参数
             noise_intensity = get_random_value_in_range(config['print_noise']['noise_intensity'])
-            applied_effects.append(f"print_noise(intensity={noise_intensity:.3f})")
+            effect_log = f"print_noise(intensity={noise_intensity:.3f})"
+            applied_effects.append(effect_log)
             result = self.add_print_noise(result, noise_intensity=noise_intensity)
 
         except Exception as e:
@@ -950,7 +957,7 @@ class BlurGenerator:
             print(f"   Config: {config}")
             raise e
 
-        return result
+        return result, applied_effects
 
     def apply_random_additional_blur(self, image: np.ndarray, num_effects: int = None) -> Dict[str, Any]:
         """
@@ -1049,5 +1056,6 @@ class BlurGenerator:
             'image': result,
             'blur_type': f"base_plus_{'_'.join(applied_effects)}",
             'additional_effects': applied_effects,
+            'additional_effects_details': effect_details,
             'num_additional': len(applied_effects)
         }
