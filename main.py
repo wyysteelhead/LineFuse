@@ -277,12 +277,18 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
                     line_width: float = 0.8,
                     pixel_perfect: bool = True,
                     pure_line_only: bool = False,
-                    target_style: str = None):
+                    target_style: str = None,
+                    clean_only: bool = False):
     """生成完整的训练数据集"""
     print(f"=== LineFuse 数据集生成 ===")
     print(f"使用样本数量: {num_samples}")
     print(f"输出目录: {output_dir}")
-    print(f"难度级别: {', '.join(difficulty_levels)}")
+
+    if clean_only:
+        print(f"🎯 清晰图表模式: 仅生成清晰图表，跳过模糊处理")
+    else:
+        print(f"难度级别: {', '.join(difficulty_levels)}")
+
     print(f"样式多样化: {'启用' if enable_style_diversity else '禁用'}")
     if enable_style_diversity:
         print(f"多样化程度: {style_diversity_level:.1f} (0.0=最低, 1.0=最高)")
@@ -337,25 +343,70 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
     actual_samples = len(csv_files)
     print(f"✓ 找到 {len(list(existing_csv_dir.glob('*.csv')))} 个CSV文件，使用 {actual_samples} 个")
 
-    # 直接创建最终数据集目录
-    final_dir = Path(output_dir) / 'final_dataset'
-    final_dir.mkdir(parents=True, exist_ok=True)
+    if clean_only:
+        # 清晰模式：直接创建清晰图表目录
+        clean_output_dir = Path(output_dir) / 'clean_charts'
+        clean_output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        # 正常模式：创建分层数据集目录
+        final_dir = Path(output_dir) / 'final_dataset'
+        final_dir.mkdir(parents=True, exist_ok=True)
 
-    # 临时目录用于中间处理
-    temp_clean_dir = Path(output_dir) / '.temp_clean'
-    temp_blur_dir = Path(output_dir) / '.temp_blur'
-    temp_clean_dir.mkdir(exist_ok=True)
-    temp_blur_dir.mkdir(exist_ok=True)
+        # 临时目录用于中间处理
+        temp_clean_dir = Path(output_dir) / '.temp_clean'
+        temp_blur_dir = Path(output_dir) / '.temp_blur'
+        temp_clean_dir.mkdir(exist_ok=True)
+        temp_blur_dir.mkdir(exist_ok=True)
 
-    # 步骤1: 从已有CSV生成清晰图表
-    print(f"\n1. 从已有CSV生成清晰光谱图表...")
+    if clean_only:
+        # 🎯 清晰模式：直接生成清晰图表
+        print(f"\n📈 生成清晰光谱图表...")
 
-    # 注意：这里不再直接生成最终的clean图表
-    # 而是为每个难度级别生成对应的clean基础图，确保clean/blur背景一致
-    print("  清晰图表将按难度级别生成以确保与模糊图表背景一致...")
+        total_clean_count = 0
 
-    # 步骤2: 按难度级别生成统一基础图和配对的clean/blur图
-    print(f"\n2. 按难度级别生成统一基础图和配对的clean/blur图...")
+        # 创建清晰图生成器 - 统一使用标准科学图表样式
+        clean_generator = CleanChartGenerator(
+            figure_size=(image_size, image_size),
+            line_width=line_width,
+            enable_style_diversity=False,  # 禁用样式多样化，保证统一样式
+            style_diversity_level=0.0,     # 确保无随机变化
+            target_style='scientific'      # 使用标准科学图表样式（网格背景+完整坐标轴）
+        )
+
+        print(f"  📋 样式配置: 统一网格背景 + 完整坐标轴标签 + 'Spectrum Analysis'标题")
+
+        # 为每个CSV文件生成清晰图表
+        for csv_file in csv_files:
+            output_name = f"{csv_file.stem}_clean.png"
+            output_path = clean_output_dir / output_name
+
+            try:
+                clean_generator.process_csv_to_chart(csv_file, output_path,
+                                                   pure_line_only=pure_line_only,
+                                                   pixel_perfect=pixel_perfect)
+                total_clean_count += 1
+                print(f"  ✅ {output_name}")
+
+            except Exception as e:
+                print(f"  ❌ 生成失败 {csv_file.name}: {e}")
+
+        print(f"\n🎉 清晰图表生成完成!")
+        print(f"✓ 共生成 {total_clean_count} 张清晰图表")
+        print(f"📁 保存位置: {clean_output_dir.absolute()}")
+
+        return True
+
+    else:
+        # 🔄 正常模式：生成完整训练数据集
+        # 步骤1: 从已有CSV生成清晰图表
+        print(f"\n1. 从已有CSV生成清晰光谱图表...")
+
+        # 注意：这里不再直接生成最终的clean图表
+        # 而是为每个难度级别生成对应的clean基础图，确保clean/blur背景一致
+        print("  清晰图表将按难度级别生成以确保与模糊图表背景一致...")
+
+        # 步骤2: 按难度级别生成统一基础图和配对的clean/blur图
+        print(f"\n2. 按难度级别生成统一基础图和配对的clean/blur图...")
 
     # 检查是否可以生成模糊效果
     can_generate_blur = True
@@ -810,6 +861,8 @@ def main():
                            help='纯线条模式 (仅线条，无坐标轴等)')
     gen_parser.add_argument('--test-new-blur', action='store_true',
                            help='测试新的模糊效果 (线条断续、区域细化等)')
+    gen_parser.add_argument('--clean-only', action='store_true',
+                           help='仅生成清晰图表，跳过模糊图生成过程')
 
     # 训练命令
     train_parser = subparsers.add_parser('train', help='训练去模糊模型')
@@ -846,7 +899,8 @@ def main():
             line_width=args.line_width,
             pixel_perfect=pixel_perfect,
             pure_line_only=args.pure_line_only,
-            target_style=args.target_style
+            target_style=args.target_style,
+            clean_only=args.clean_only
         )
     elif args.command == 'train':
         train_model(
