@@ -16,6 +16,7 @@ DIFFICULTY_CONFIG = {
         'regional_thinning': {
             'num_regions': (0, 1),  # 允许0个区域，即可能完全跳过该效果
             'thinning_strength': (0.05, 0.15),  # 进一步降低 0.1-0.25 → 0.05-0.15
+            'region_size_range': ((100, 180), (120, 250)),  # Easy: 较小区域范围
             'color_variation': False
         },
         'line_discontinuity': {
@@ -62,6 +63,7 @@ DIFFICULTY_CONFIG = {
         'regional_thinning': {
             'num_regions': (1, 2),  # 确保有区域细化 (0, 1) → (1, 2)
             'thinning_strength': (0.2, 0.4),  # 大幅提高让线条变化明显 0.1-0.25 → 0.2-0.4
+            'region_size_range': ((180, 300), (250, 400)),  # Medium: 中等区域范围
             'color_variation': False  # 暂时禁用颜色变化
         },
         'line_discontinuity': {
@@ -107,6 +109,7 @@ DIFFICULTY_CONFIG = {
         'regional_thinning': {
             'num_regions': (2, 3),  # 增加区域数量 (1, 2) → (2, 3)
             'thinning_strength': (0.3, 0.5),  # 提高强度让变化更明显 0.2-0.4 → 0.3-0.5
+            'region_size_range': ((250, 400), (300, 500)),  # Hard: 最大区域范围
             'color_variation': False  # 暂时禁用颜色变化
         },
         'line_discontinuity': {

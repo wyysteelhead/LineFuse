@@ -947,11 +947,13 @@ class BlurGenerator:
             thinning_config = config['regional_thinning']
             num_regions = get_random_value_in_range(thinning_config['num_regions'], is_int=True)
             thinning_strength = get_random_value_in_range(thinning_config['thinning_strength'])
-            effect_log = f"regional_thinning(regions={num_regions}, strength={thinning_strength:.3f}, color_var={thinning_config['color_variation']})"
+            region_size_range = get_random_range_in_ranges(thinning_config['region_size_range'], is_int=True)
+            effect_log = f"regional_thinning(regions={num_regions}, strength={thinning_strength:.3f}, size_range={region_size_range}, color_var={thinning_config['color_variation']})"
             applied_effects.append(effect_log)
             result = self.regional_line_thinning(result,
                                                num_regions=num_regions,
                                                thinning_strength=thinning_strength,
+                                               region_size_range=region_size_range,
                                                color_variation=thinning_config['color_variation'])
 
             # 3. 线段断断续续 - 使用配置化参数
