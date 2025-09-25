@@ -633,126 +633,51 @@ class BlurGenerator:
         # print(f"  虚线效果处理: 创建了 {gaps_created} 个小间隙")
         return result
 
-    def regional_line_thinning(self, image: np.ndarray,
-                             num_regions: int = 4,
-                             region_size_range: tuple = (120, 300),
-                             thinning_strength: float = 1.2,
-                             color_variation: bool = True) -> np.ndarray:
+    def simple_line_thinning_and_fading(self, image: np.ndarray,
+                                       thinning_strength: float = 0.3,
+                                       fading_strength: float = 0.3) -> np.ndarray:
         """
-        Apply dramatic line thinning with strong visual effects to specific regions
-        对特定区域进行戏剧性的线条细化处理 - 确保变化明显可见
+        Simple line thinning and fading effects
+        简单的线条变细和变淡效果 - 作用于整个图像的线条
+
+        Args:
+            thinning_strength: 线条变细强度 (0-1)
+            fading_strength: 线条变淡强度 (0-1)
         """
         result = image.copy()
-        h, w = result.shape[:2]
 
-        # 如果num_regions为0，直接返回原图（跳过该效果）
-        if num_regions == 0:
-            return result
+        # 1. 线条变细 - 使用温和的腐蚀
+        if thinning_strength > 0:
+            kernel_size = max(1, int(2 + 3 * thinning_strength))  # 1-5像素的kernel
+            if kernel_size % 2 == 0:  # 确保是奇数
+                kernel_size += 1
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+            iterations = max(1, int(1 + 2 * thinning_strength))  # 1-3次迭代
+            result = cv2.erode(result, kernel, iterations=iterations)
 
-        for i in range(num_regions):
-            # 更大的区域以确保效果显著
-            region_w = random.randint(region_size_range[0], region_size_range[1])
-            region_h = random.randint(region_size_range[0], region_size_range[1])
-            region_x = random.randint(0, max(1, w - region_w))
-            region_y = random.randint(0, max(1, h - region_h))
+        # 2. 线条变淡 - 让线条颜色变浅
+        if fading_strength > 0:
+            # 找到线条区域（暗像素）
+            if len(result.shape) == 3:
+                gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = result.copy()
 
-            # Extract region
-            region = result[region_y:region_y+region_h, region_x:region_x+region_w].copy()
+            # 线条mask（比背景暗的像素）
+            line_mask = gray < 200
 
-            # 🎯 戏剧性线条细化 - 三种强化方案随机选择
-            effect_type = random.choice(['ultra_thin', 'broken_lines', 'faded_lines'])
+            if np.any(line_mask):
+                # 计算变淡强度 - 让线条向白色靠近
+                fade_amount = int(80 * fading_strength)  # 0-80的变淡量
 
-            if effect_type == 'ultra_thin':
-                # 1. 极细线条效果 - 更强的腐蚀让线条非常细
-                kernel_size = max(4, int(6 * thinning_strength))  # 更大的kernel
-                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
-                processed_region = cv2.erode(region, kernel, iterations=3)  # 更多迭代
-                # 微调膨胀避免完全消失但保持超细效果
-                small_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (1, 1))
-                processed_region = cv2.dilate(processed_region, small_kernel, iterations=1)
-
-            elif effect_type == 'broken_lines':
-                # 2. 断线效果 - 创建明显的间隙
-                processed_region = region.copy()
-                if len(processed_region.shape) == 3:
-                    gray_region = cv2.cvtColor(processed_region, cv2.COLOR_BGR2GRAY)
-                else:
-                    gray_region = processed_region.copy()
-
-                # 找到线条像素
-                line_pixels = np.where(gray_region < 180)  # 更宽泛的线条检测
-                if len(line_pixels[0]) > 0:
-                    # 移除更多像素创造戏剧性断线效果
-                    removal_ratio = 0.4 * thinning_strength  # 大幅增加移除比例
-                    num_pixels_to_remove = int(len(line_pixels[0]) * removal_ratio)
-                    if num_pixels_to_remove > 0:
-                        indices = random.sample(range(len(line_pixels[0])),
-                                              min(num_pixels_to_remove, len(line_pixels[0])))
-                        # 创建更大更明显的间隙
-                        for idx in indices:
-                            y_pos, x_pos = line_pixels[0][idx], line_pixels[1][idx]
-                            gap_size = random.randint(5, 12)  # 更大的间隙增强视觉效果
-                            y1 = max(0, y_pos - gap_size//2)
-                            y2 = min(processed_region.shape[0], y_pos + gap_size//2)
-                            x1 = max(0, x_pos - gap_size//2)
-                            x2 = min(processed_region.shape[1], x_pos + gap_size//2)
-                            if len(processed_region.shape) == 3:
-                                processed_region[y1:y2, x1:x2] = [255, 255, 255]
-                            else:
-                                processed_region[y1:y2, x1:x2] = 255
-
-            else:  # 'faded_lines'
-                # 3. 褪色线条效果 - 让部分线条变得非常浅
-                processed_region = region.copy()
-                if len(processed_region.shape) == 3:
-                    gray_region = cv2.cvtColor(processed_region, cv2.COLOR_BGR2GRAY)
-                else:
-                    gray_region = processed_region.copy()
-
-                # 找到线条区域并大幅褪色
-                fade_mask = gray_region < 180
-                fade_intensity = 120 + int(80 * thinning_strength)  # 更强的褪色强度
-                if len(processed_region.shape) == 3:
+                result = result.astype(np.float32)
+                if len(result.shape) == 3:
                     for c in range(3):
-                        channel = processed_region[:, :, c].astype(np.float32)
-                        channel[fade_mask] += fade_intensity
-                        processed_region[:, :, c] = np.clip(channel, 0, 255).astype(np.uint8)
+                        result[:, :, c][line_mask] += fade_amount
                 else:
-                    processed_region = processed_region.astype(np.float32)
-                    processed_region[fade_mask] += fade_intensity
-                    processed_region = np.clip(processed_region, 0, 255).astype(np.uint8)
+                    result[line_mask] += fade_amount
 
-            # 添加线条颜色变化效果（如果启用）
-            if color_variation and len(processed_region.shape) == 3:
-                if len(processed_region.shape) == 3:
-                    gray_region = cv2.cvtColor(processed_region, cv2.COLOR_BGR2GRAY)
-                else:
-                    gray_region = processed_region.copy()
-
-                line_mask = gray_region < 200
-                if np.any(line_mask):
-                    # 更强的颜色变化效果
-                    color_shift = random.choice([
-                        [random.randint(-30, 30), random.randint(-30, 30), random.randint(-30, 30)],  # 更强色偏
-                        [random.randint(-40, 0), 0, 0],      # 红色大量减少
-                        [0, random.randint(-40, 0), 0],      # 绿色大量减少
-                        [0, 0, random.randint(-40, 0)],      # 蓝色大量减少
-                        [random.randint(-35, -10), random.randint(-35, -10), random.randint(-35, -10)], # 大幅变暗
-                    ])
-
-                    processed_region = processed_region.astype(np.float32)
-                    for c in range(3):
-                        channel = processed_region[:, :, c]
-                        channel[line_mask] += color_shift[c]
-                    processed_region = np.clip(processed_region, 0, 255).astype(np.uint8)
-
-            # 极强混合 - 让线条变化效果非常显著
-            alpha = 0.9 + 0.05 * min(thinning_strength, 2.0)  # 极强的混合比例
-            alpha = min(alpha, 0.98)  # 确保不完全替换
-            final_region = cv2.addWeighted(region, 1-alpha, processed_region, alpha, 0)
-
-            # 应用到结果图像
-            result[region_y:region_y+region_h, region_x:region_x+region_w] = final_region
+                result = np.clip(result, 0, 255).astype(np.uint8)
 
         return result
 
@@ -944,18 +869,15 @@ class BlurGenerator:
             applied_effects.append(effect_log)
             result = self.background_color_variation(result, intensity=bg_intensity)
 
-            # 2. 线段粗细不一致 + 颜色变化 - 使用配置化参数
-            thinning_config = config['regional_thinning']
-            num_regions = get_random_value_in_range(thinning_config['num_regions'], is_int=True)
-            thinning_strength = get_random_value_in_range(thinning_config['thinning_strength'])
-            region_size_range = get_random_range_in_ranges(thinning_config['region_size_range'], is_int=True)
-            effect_log = f"regional_thinning(regions={num_regions}, strength={thinning_strength:.3f}, size_range={region_size_range}, color_var={thinning_config['color_variation']})"
+            # 2. 线条变细和变淡 - 使用配置化参数
+            line_config = config['line_thinning_fading']
+            thinning_strength = get_random_value_in_range(line_config['thinning_strength'])
+            fading_strength = get_random_value_in_range(line_config['fading_strength'])
+            effect_log = f"line_thinning_fading(thin={thinning_strength:.3f}, fade={fading_strength:.3f})"
             applied_effects.append(effect_log)
-            result = self.regional_line_thinning(result,
-                                               num_regions=num_regions,
-                                               thinning_strength=thinning_strength,
-                                               region_size_range=region_size_range,
-                                               color_variation=thinning_config['color_variation'])
+            result = self.simple_line_thinning_and_fading(result,
+                                                        thinning_strength=thinning_strength,
+                                                        fading_strength=fading_strength)
 
             # 3. 线段断断续续 - 使用配置化参数
             discontinuity_config = config['line_discontinuity']

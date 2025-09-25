@@ -13,11 +13,9 @@ DIFFICULTY_CONFIG = {
         'line_width': 1.0,  # 线条粗细
 
         # 基础效果参数范围
-        'regional_thinning': {
-            'num_regions': (0, 1),  # 允许0个区域，即可能完全跳过该效果
-            'thinning_strength': (0.05, 0.15),  # 进一步降低 0.1-0.25 → 0.05-0.15
-            'region_size_range': ((100, 180), (120, 250)),  # Easy: 较小区域范围
-            'color_variation': False
+        'line_thinning_fading': {
+            'thinning_strength': (0.1, 0.2),  # Easy: 轻微变细
+            'fading_strength': (0.1, 0.2),    # Easy: 轻微变淡
         },
         'line_discontinuity': {
             'gap_density': (0.01, 0.05),  # 进一步降低 0.03-0.08 → 0.01-0.05
@@ -60,11 +58,9 @@ DIFFICULTY_CONFIG = {
         'additional_effects_count': (0, 1),  # 减少额外效果让线条变化更突出
         'line_width': 0.3,
 
-        'regional_thinning': {
-            'num_regions': (2, 3),  # 增加区域数量让变化更明显 (1, 2) → (2, 3)
-            'thinning_strength': (0.6, 1.0),  # 大幅增强线条变化强度 0.2-0.4 → 0.6-1.0
-            'region_size_range': ((180, 300), (250, 400)),  # Medium: 中等区域范围
-            'color_variation': True  # 启用颜色变化增强视觉对比
+        'line_thinning_fading': {
+            'thinning_strength': (0.3, 0.5),  # Medium: 中等变细
+            'fading_strength': (0.3, 0.5),    # Medium: 中等变淡
         },
         'line_discontinuity': {
             'gap_density': (0.06, 0.15),  # 提高虚线密度 0.02-0.06 → 0.06-0.15
@@ -106,11 +102,9 @@ DIFFICULTY_CONFIG = {
         'additional_effects_count': (0, 2),  # 减少额外效果突出线条变化特征
         'line_width': 0.15,
 
-        'regional_thinning': {
-            'num_regions': (3, 4),  # 更多区域数量让变化更戏剧性 (2, 3) → (3, 4)
-            'thinning_strength': (0.8, 1.5),  # 极强的线条变化强度 0.3-0.5 → 0.8-1.5
-            'region_size_range': ((250, 400), (300, 500)),  # Hard: 最大区域范围
-            'color_variation': True  # 启用颜色变化创造最强对比
+        'line_thinning_fading': {
+            'thinning_strength': (0.5, 0.8),  # Hard: 强烈变细
+            'fading_strength': (0.5, 0.8),    # Hard: 强烈变淡
         },
         'line_discontinuity': {
             'gap_density': (0.15, 0.3),  # 提高虚线密度 0.06-0.15 → 0.15-0.3
