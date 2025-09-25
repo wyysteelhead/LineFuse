@@ -442,6 +442,7 @@ class BlurGenerator:
         """基于难度配置的打印扫描模糊效果"""
         blur_strength = difficulty_config['blur_strength']
         contrast_reduction = difficulty_config['contrast_reduction']
+        print ("blur_strength", blur_strength, "contrast_reduction", contrast_reduction)
 
         # 根据难度调整模糊强度
         edge_blur_sigma = 1.5 * blur_strength
@@ -1131,3 +1132,101 @@ class BlurGenerator:
             'additional_effects_details': effect_details,
             'num_additional': len(applied_effects)
         }
+
+    def simple_line_thinning_and_fading(self, image: np.ndarray,
+                                      thinning_strength: float = 0.3,
+                                      fading_strength: float = 0.3) -> np.ndarray:
+        """
+        简单的线条细化和变淡效果
+
+        Args:
+            image: 输入图像
+            thinning_strength: 细化强度 (0-1)
+            fading_strength: 变淡强度 (0-1)
+
+        Returns:
+            处理后的图像
+        """
+        result = image.copy()
+
+        # 检测线条区域 (暗色区域)
+        gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY) if len(result.shape) == 3 else result.copy()
+        line_mask = gray < 180  # 线条通常是暗色的
+
+        # 1. 线条细化 - 使用形态学腐蚀
+        if thinning_strength > 0:
+            kernel_size = max(1, int(3 * thinning_strength))
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+            # 仅在线条区域应用腐蚀
+            thinned_gray = cv2.erode(gray, kernel, iterations=1)
+            # 混合原图和细化结果
+            alpha = 1 - thinning_strength
+            gray = cv2.addWeighted(gray, alpha, thinned_gray, thinning_strength, 0)
+
+        # 2. 线条变淡 - 增加线条区域的亮度
+        if fading_strength > 0:
+            fade_amount = int(50 * fading_strength)  # 最多增加50的亮度
+            gray[line_mask] = np.clip(gray[line_mask] + fade_amount, 0, 255)
+
+        # 转换回原始色彩空间
+        if len(result.shape) == 3:
+            result = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+        else:
+            result = gray
+
+        return result
+
+    def local_blur_degradation(self, image: np.ndarray,
+                              num_regions: int = 3,
+                              blur_intensity: float = 0.5) -> np.ndarray:
+        """
+        局部模糊退化效果 - 在图像的随机区域应用模糊
+
+        Args:
+            image: 输入图像
+            num_regions: 模糊区域数量
+            blur_intensity: 模糊强度 (0-1)
+
+        Returns:
+            处理后的图像
+        """
+        result = image.copy()
+        h, w = result.shape[:2]
+
+        for i in range(num_regions):
+            # 随机选择区域位置和大小
+            region_w = random.randint(w//8, w//3)  # 区域宽度
+            region_h = random.randint(h//8, h//3)  # 区域高度
+            x = random.randint(0, w - region_w)
+            y = random.randint(0, h - region_h)
+
+            # 提取区域
+            region = result[y:y+region_h, x:x+region_w].copy()
+
+            # 应用高斯模糊
+            kernel_size = max(3, int(7 * blur_intensity))
+            if kernel_size % 2 == 0:  # 确保是奇数
+                kernel_size += 1
+            sigma = 1.0 + 2.0 * blur_intensity
+            blurred_region = cv2.GaussianBlur(region, (kernel_size, kernel_size), sigma)
+
+            # 创建渐变混合蒙版，避免硬边缘
+            mask = np.zeros((region_h, region_w), dtype=np.float32)
+            center_x, center_y = region_w // 2, region_h // 2
+            max_dist = min(region_w, region_h) // 2
+
+            for py in range(region_h):
+                for px in range(region_w):
+                    dist = np.sqrt((px - center_x)**2 + (py - center_y)**2)
+                    if dist < max_dist:
+                        mask[py, px] = 1.0 - (dist / max_dist)
+
+            # 应用混合蒙版
+            if len(result.shape) == 3:
+                mask = np.stack([mask] * 3, axis=-1)
+
+            # 混合原始区域和模糊区域
+            mixed_region = region * (1 - mask * blur_intensity) + blurred_region * (mask * blur_intensity)
+            result[y:y+region_h, x:x+region_w] = mixed_region.astype(np.uint8)
+
+        return result
