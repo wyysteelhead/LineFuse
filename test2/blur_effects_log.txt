@@ -1,0 +1,782 @@
+LineFuse 模糊效果详细日志
+==================================================
+生成时间: 2025-09-25 19:17:22.233994
+样本数量: 5
+难度级别: easy, medium, hard
+样式多样化: 启用
+==================================================
+
+=== spectrum_00000_easy_variant_0.png ===
+Difficulty: easy
+CSV Source: spectrum_00000.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.097)
+  - regional_thinning(regions=1, strength=0.053, color_var=False)
+  - line_discontinuity(density=0.034, gap_range=(1, 1))
+  - print_noise(intensity=0.006)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00000_easy_variant_1.png ===
+Difficulty: easy
+CSV Source: spectrum_00000.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.091)
+  - regional_thinning(regions=1, strength=0.129, color_var=False)
+  - line_discontinuity(density=0.038, gap_range=(1, 1))
+  - print_noise(intensity=0.003)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00000_easy_variant_2.png ===
+Difficulty: easy
+CSV Source: spectrum_00000.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.060)
+  - regional_thinning(regions=1, strength=0.081, color_var=False)
+  - line_discontinuity(density=0.035, gap_range=(1, 1))
+  - print_noise(intensity=0.008)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00001_easy_variant_0.png ===
+Difficulty: easy
+CSV Source: spectrum_00001.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.090)
+  - regional_thinning(regions=1, strength=0.063, color_var=False)
+  - line_discontinuity(density=0.049, gap_range=(1, 1))
+  - print_noise(intensity=0.005)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00001_easy_variant_1.png ===
+Difficulty: easy
+CSV Source: spectrum_00001.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.084)
+  - regional_thinning(regions=1, strength=0.135, color_var=False)
+  - line_discontinuity(density=0.049, gap_range=(1, 1))
+  - print_noise(intensity=0.003)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00001_easy_variant_2.png ===
+Difficulty: easy
+CSV Source: spectrum_00001.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.093)
+  - regional_thinning(regions=1, strength=0.149, color_var=False)
+  - line_discontinuity(density=0.028, gap_range=(1, 1))
+  - print_noise(intensity=0.003)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00002_easy_variant_0.png ===
+Difficulty: easy
+CSV Source: spectrum_00002.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.073)
+  - regional_thinning(regions=1, strength=0.113, color_var=False)
+  - line_discontinuity(density=0.022, gap_range=(1, 1))
+  - print_noise(intensity=0.006)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00002_easy_variant_1.png ===
+Difficulty: easy
+CSV Source: spectrum_00002.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.079)
+  - regional_thinning(regions=1, strength=0.145, color_var=False)
+  - line_discontinuity(density=0.045, gap_range=(1, 1))
+  - print_noise(intensity=0.002)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00002_easy_variant_2.png ===
+Difficulty: easy
+CSV Source: spectrum_00002.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.093)
+  - regional_thinning(regions=0, strength=0.066, color_var=False)
+  - line_discontinuity(density=0.020, gap_range=(1, 1))
+  - print_noise(intensity=0.007)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00003_easy_variant_0.png ===
+Difficulty: easy
+CSV Source: spectrum_00003.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.055)
+  - regional_thinning(regions=0, strength=0.057, color_var=False)
+  - line_discontinuity(density=0.044, gap_range=(1, 1))
+  - print_noise(intensity=0.007)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00003_easy_variant_1.png ===
+Difficulty: easy
+CSV Source: spectrum_00003.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.052)
+  - regional_thinning(regions=0, strength=0.110, color_var=False)
+  - line_discontinuity(density=0.012, gap_range=(1, 1))
+  - print_noise(intensity=0.004)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00003_easy_variant_2.png ===
+Difficulty: easy
+CSV Source: spectrum_00003.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.115)
+  - regional_thinning(regions=0, strength=0.076, color_var=False)
+  - line_discontinuity(density=0.013, gap_range=(1, 1))
+  - print_noise(intensity=0.005)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00004_easy_variant_0.png ===
+Difficulty: easy
+CSV Source: spectrum_00004.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.076)
+  - regional_thinning(regions=1, strength=0.064, color_var=False)
+  - line_discontinuity(density=0.044, gap_range=(1, 1))
+  - print_noise(intensity=0.002)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00004_easy_variant_1.png ===
+Difficulty: easy
+CSV Source: spectrum_00004.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.120)
+  - regional_thinning(regions=0, strength=0.126, color_var=False)
+  - line_discontinuity(density=0.034, gap_range=(1, 1))
+  - print_noise(intensity=0.002)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00004_easy_variant_2.png ===
+Difficulty: easy
+CSV Source: spectrum_00004.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.061)
+  - regional_thinning(regions=0, strength=0.133, color_var=False)
+  - line_discontinuity(density=0.016, gap_range=(1, 1))
+  - print_noise(intensity=0.008)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00000_medium_variant_0.png ===
+Difficulty: medium
+CSV Source: spectrum_00000.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.127)
+  - regional_thinning(regions=1, strength=0.155, color_var=False)
+  - line_discontinuity(density=0.062, gap_range=(1, 1))
+  - print_noise(intensity=0.010)
+
+Additional Effects:
+  - local_blur
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00000_medium_variant_1.png ===
+Difficulty: medium
+CSV Source: spectrum_00000.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.119)
+  - regional_thinning(regions=1, strength=0.172, color_var=False)
+  - line_discontinuity(density=0.077, gap_range=(1, 1))
+  - print_noise(intensity=0.005)
+
+Additional Effects:
+  - threshold(range=(111, 115))
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00000_medium_variant_2.png ===
+Difficulty: medium
+CSV Source: spectrum_00000.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.110)
+  - regional_thinning(regions=1, strength=0.171, color_var=False)
+  - line_discontinuity(density=0.046, gap_range=(1, 1))
+  - print_noise(intensity=0.009)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00001_medium_variant_0.png ===
+Difficulty: medium
+CSV Source: spectrum_00001.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.096)
+  - regional_thinning(regions=1, strength=0.236, color_var=False)
+  - line_discontinuity(density=0.076, gap_range=(1, 1))
+  - print_noise(intensity=0.010)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00001_medium_variant_1.png ===
+Difficulty: medium
+CSV Source: spectrum_00001.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.139)
+  - regional_thinning(regions=1, strength=0.185, color_var=False)
+  - line_discontinuity(density=0.070, gap_range=(1, 1))
+  - print_noise(intensity=0.008)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00001_medium_variant_2.png ===
+Difficulty: medium
+CSV Source: spectrum_00001.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.086)
+  - regional_thinning(regions=1, strength=0.168, color_var=False)
+  - line_discontinuity(density=0.051, gap_range=(1, 1))
+  - print_noise(intensity=0.010)
+
+Additional Effects:
+  - local_blur
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00002_medium_variant_0.png ===
+Difficulty: medium
+CSV Source: spectrum_00002.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.123)
+  - regional_thinning(regions=1, strength=0.273, color_var=False)
+  - line_discontinuity(density=0.064, gap_range=(1, 1))
+  - print_noise(intensity=0.006)
+
+Additional Effects:
+  - print_scan_blur
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00002_medium_variant_1.png ===
+Difficulty: medium
+CSV Source: spectrum_00002.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.081)
+  - regional_thinning(regions=1, strength=0.272, color_var=False)
+  - line_discontinuity(density=0.064, gap_range=(1, 1))
+  - print_noise(intensity=0.007)
+
+Additional Effects:
+  - spectral_degradation(strength=0.126, range=0.296)
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00002_medium_variant_2.png ===
+Difficulty: medium
+CSV Source: spectrum_00002.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.127)
+  - regional_thinning(regions=1, strength=0.203, color_var=False)
+  - line_discontinuity(density=0.072, gap_range=(1, 1))
+  - print_noise(intensity=0.013)
+
+Additional Effects:
+  - print_scan_simulation
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00003_medium_variant_0.png ===
+Difficulty: medium
+CSV Source: spectrum_00003.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.124)
+  - regional_thinning(regions=1, strength=0.185, color_var=False)
+  - line_discontinuity(density=0.070, gap_range=(1, 1))
+  - print_noise(intensity=0.014)
+
+Additional Effects:
+  - motion(kernel=(4, 4))
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00003_medium_variant_1.png ===
+Difficulty: medium
+CSV Source: spectrum_00003.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.085)
+  - regional_thinning(regions=1, strength=0.161, color_var=False)
+  - line_discontinuity(density=0.073, gap_range=(1, 1))
+  - print_noise(intensity=0.008)
+
+Additional Effects:
+  - gaussian(kernel=(5, 5), sigma=(0.5343437732606873, 0.7873815501813461))
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00003_medium_variant_2.png ===
+Difficulty: medium
+CSV Source: spectrum_00003.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.103)
+  - regional_thinning(regions=1, strength=0.243, color_var=False)
+  - line_discontinuity(density=0.055, gap_range=(1, 1))
+  - print_noise(intensity=0.011)
+
+Additional Effects:
+  - local_blur
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00004_medium_variant_0.png ===
+Difficulty: medium
+CSV Source: spectrum_00004.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.138)
+  - regional_thinning(regions=1, strength=0.270, color_var=False)
+  - line_discontinuity(density=0.041, gap_range=(1, 1))
+  - print_noise(intensity=0.013)
+
+Additional Effects:
+  - motion(kernel=(3, 4))
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00004_medium_variant_1.png ===
+Difficulty: medium
+CSV Source: spectrum_00004.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.107)
+  - regional_thinning(regions=1, strength=0.169, color_var=False)
+  - line_discontinuity(density=0.045, gap_range=(1, 1))
+  - print_noise(intensity=0.008)
+
+Additional Effects:
+  - None
+
+Total Effects: 4
+--------------------------------------------------
+
+=== spectrum_00004_medium_variant_2.png ===
+Difficulty: medium
+CSV Source: spectrum_00004.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.125)
+  - regional_thinning(regions=1, strength=0.276, color_var=False)
+  - line_discontinuity(density=0.059, gap_range=(1, 1))
+  - print_noise(intensity=0.007)
+
+Additional Effects:
+  - spectral_degradation(strength=0.240, range=0.263)
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00000_hard_variant_0.png ===
+Difficulty: hard
+CSV Source: spectrum_00000.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.302)
+  - regional_thinning(regions=3, strength=0.410, color_var=True)
+  - line_discontinuity(density=0.141, gap_range=(1, 3))
+  - print_noise(intensity=0.034)
+
+Additional Effects:
+  - threshold(range=(76, 87))
+  - compression(quality=(53, 59))
+  - print_scan_blur
+
+Total Effects: 7
+--------------------------------------------------
+
+=== spectrum_00000_hard_variant_1.png ===
+Difficulty: hard
+CSV Source: spectrum_00000.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.234)
+  - regional_thinning(regions=2, strength=0.549, color_var=True)
+  - line_discontinuity(density=0.247, gap_range=(1, 3))
+  - print_noise(intensity=0.020)
+
+Additional Effects:
+  - compression(quality=(66, 66))
+  - gaussian(kernel=(8, 11), sigma=(1.0872099365345975, 1.2892475517990907))
+
+Total Effects: 6
+--------------------------------------------------
+
+=== spectrum_00000_hard_variant_2.png ===
+Difficulty: hard
+CSV Source: spectrum_00000.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.202)
+  - regional_thinning(regions=3, strength=0.504, color_var=True)
+  - line_discontinuity(density=0.175, gap_range=(1, 3))
+  - print_noise(intensity=0.024)
+
+Additional Effects:
+  - print_scan_simulation
+  - line_interference(1-3)
+
+Total Effects: 6
+--------------------------------------------------
+
+=== spectrum_00001_hard_variant_0.png ===
+Difficulty: hard
+CSV Source: spectrum_00001.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.260)
+  - regional_thinning(regions=2, strength=0.436, color_var=True)
+  - line_discontinuity(density=0.156, gap_range=(1, 3))
+  - print_noise(intensity=0.034)
+
+Additional Effects:
+  - line_interference(1-3)
+  - spectral_degradation(strength=0.381, range=0.415)
+
+Total Effects: 6
+--------------------------------------------------
+
+=== spectrum_00001_hard_variant_1.png ===
+Difficulty: hard
+CSV Source: spectrum_00001.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.228)
+  - regional_thinning(regions=2, strength=0.680, color_var=True)
+  - line_discontinuity(density=0.229, gap_range=(1, 3))
+  - print_noise(intensity=0.043)
+
+Additional Effects:
+  - threshold(range=(86, 107))
+  - spectral_degradation(strength=0.487, range=0.582)
+
+Total Effects: 6
+--------------------------------------------------
+
+=== spectrum_00001_hard_variant_2.png ===
+Difficulty: hard
+CSV Source: spectrum_00001.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.336)
+  - regional_thinning(regions=2, strength=0.694, color_var=True)
+  - line_discontinuity(density=0.174, gap_range=(1, 3))
+  - print_noise(intensity=0.038)
+
+Additional Effects:
+  - local_blur
+  - lowres(factor=(4, 5))
+
+Total Effects: 6
+--------------------------------------------------
+
+=== spectrum_00002_hard_variant_0.png ===
+Difficulty: hard
+CSV Source: spectrum_00002.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.255)
+  - regional_thinning(regions=2, strength=0.417, color_var=True)
+  - line_discontinuity(density=0.132, gap_range=(1, 3))
+  - print_noise(intensity=0.027)
+
+Additional Effects:
+  - text_interference(1-3)
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00002_hard_variant_1.png ===
+Difficulty: hard
+CSV Source: spectrum_00002.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.275)
+  - regional_thinning(regions=3, strength=0.452, color_var=True)
+  - line_discontinuity(density=0.177, gap_range=(1, 3))
+  - print_noise(intensity=0.045)
+
+Additional Effects:
+  - spectral_degradation(strength=0.406, range=0.499)
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00002_hard_variant_2.png ===
+Difficulty: hard
+CSV Source: spectrum_00002.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.332)
+  - regional_thinning(regions=2, strength=0.596, color_var=True)
+  - line_discontinuity(density=0.191, gap_range=(1, 3))
+  - print_noise(intensity=0.021)
+
+Additional Effects:
+  - gaussian(kernel=(9, 12), sigma=(1.4909139974510925, 1.579031000083473))
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00003_hard_variant_0.png ===
+Difficulty: hard
+CSV Source: spectrum_00003.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.314)
+  - regional_thinning(regions=3, strength=0.670, color_var=True)
+  - line_discontinuity(density=0.227, gap_range=(1, 3))
+  - print_noise(intensity=0.047)
+
+Additional Effects:
+  - threshold(range=(112, 112))
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00003_hard_variant_1.png ===
+Difficulty: hard
+CSV Source: spectrum_00003.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.221)
+  - regional_thinning(regions=3, strength=0.507, color_var=True)
+  - line_discontinuity(density=0.166, gap_range=(1, 3))
+  - print_noise(intensity=0.047)
+
+Additional Effects:
+  - motion(kernel=(11, 14))
+  - lowres(factor=(3, 3))
+
+Total Effects: 6
+--------------------------------------------------
+
+=== spectrum_00003_hard_variant_2.png ===
+Difficulty: hard
+CSV Source: spectrum_00003.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.308)
+  - regional_thinning(regions=3, strength=0.623, color_var=True)
+  - line_discontinuity(density=0.212, gap_range=(1, 3))
+  - print_noise(intensity=0.042)
+
+Additional Effects:
+  - gaussian(kernel=(8, 11), sigma=(1.9603265949160922, 2.044676798328446))
+  - threshold(range=(99, 116))
+  - print_scan_simulation
+
+Total Effects: 7
+--------------------------------------------------
+
+=== spectrum_00004_hard_variant_0.png ===
+Difficulty: hard
+CSV Source: spectrum_00004.csv
+Variant: 0
+
+Base Effects:
+  - background_variation(intensity=0.298)
+  - regional_thinning(regions=2, strength=0.421, color_var=True)
+  - line_discontinuity(density=0.171, gap_range=(1, 3))
+  - print_noise(intensity=0.023)
+
+Additional Effects:
+  - scan_lines
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00004_hard_variant_1.png ===
+Difficulty: hard
+CSV Source: spectrum_00004.csv
+Variant: 1
+
+Base Effects:
+  - background_variation(intensity=0.206)
+  - regional_thinning(regions=2, strength=0.657, color_var=True)
+  - line_discontinuity(density=0.127, gap_range=(1, 3))
+  - print_noise(intensity=0.024)
+
+Additional Effects:
+  - print_scan_simulation
+
+Total Effects: 5
+--------------------------------------------------
+
+=== spectrum_00004_hard_variant_2.png ===
+Difficulty: hard
+CSV Source: spectrum_00004.csv
+Variant: 2
+
+Base Effects:
+  - background_variation(intensity=0.349)
+  - regional_thinning(regions=2, strength=0.651, color_var=True)
+  - line_discontinuity(density=0.232, gap_range=(1, 3))
+  - print_noise(intensity=0.030)
+
+Additional Effects:
+  - print_scan_simulation
+
+Total Effects: 5
+--------------------------------------------------

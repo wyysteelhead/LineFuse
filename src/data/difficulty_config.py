@@ -99,46 +99,46 @@ DIFFICULTY_CONFIG = {
 
     'hard': {
         'name': '困难',
-        'base_intensity_range': (0.25, 0.4),
-        'additional_intensity_range': (0.35, 0.5),
-        'additional_effects_count': (1, 3),
+        'base_intensity_range': (0.12, 0.25),  # 大幅降低 0.25-0.4 → 0.12-0.25
+        'additional_intensity_range': (0.2, 0.35),  # 大幅降低 0.35-0.5 → 0.2-0.35
+        'additional_effects_count': (0, 2),  # 减少额外效果 (1, 3) → (0, 2)
         'line_width': 0.15,
 
         'regional_thinning': {
-            'num_regions': (2, 3),
-            'thinning_strength': (0.4, 0.7),  # 降低 0.6-1.0 → 0.4-0.7
-            'color_variation': True
+            'num_regions': (1, 2),  # 减少区域 (2, 3) → (1, 2)
+            'thinning_strength': (0.2, 0.4),  # 大幅降低 0.4-0.7 → 0.2-0.4
+            'color_variation': False  # 暂时禁用颜色变化
         },
         'line_discontinuity': {
-            'gap_density': (0.12, 0.25),  # 降低 0.15-0.3 → 0.12-0.25
-            'gap_size_range': ((1, 3), (2, 4))
+            'gap_density': (0.06, 0.15),  # 大幅降低 0.12-0.25 → 0.06-0.15
+            'gap_size_range': ((1, 2), (1, 3))  # 减小间隙
         },
         'print_noise': {
-            'noise_intensity': (0.02, 0.05)  # 降低 0.03-0.08 → 0.02-0.05
+            'noise_intensity': (0.008, 0.025)  # 大幅降低 0.02-0.05 → 0.008-0.025
         },
         'background_variation': {
-            'intensity': (0.2, 0.35)
+            'intensity': (0.12, 0.22)  # 降低 0.2-0.35 → 0.12-0.22
         },
 
         'gaussian_blur': {
-            'kernel_size_range': ((5, 9), (7, 13)),
-            'sigma_range': ((0.8, 1.8), (1.2, 2.5))
+            'kernel_size_range': ((3, 7), (5, 9)),  # 减小kernel (5, 9), (7, 13) → (3, 7), (5, 9)
+            'sigma_range': ((0.4, 1.0), (0.6, 1.4))  # 大幅降低sigma (0.8, 1.8), (1.2, 2.5) → (0.4, 1.0), (0.6, 1.4)
         },
         'motion_blur': {
-            'kernel_size_range': ((5, 12), (8, 16))
+            'kernel_size_range': ((3, 8), (5, 12))  # 大幅减小 (5, 12), (8, 16) → (3, 8), (5, 12)
         },
         'compression': {
-            'quality_range': ((30, 60), (40, 70))  # 提高质量范围，避免线条完全消失
+            'quality_range': ((40, 75), (50, 80))  # 进一步提高质量 (30, 60), (40, 70) → (40, 75), (50, 80)
         },
         'lowres': {
-            'downscale_factor_range': ((3, 5), (4, 6))
+            'downscale_factor_range': ((2, 4), (3, 5))  # 减少下采样 (3, 5), (4, 6) → (2, 4), (3, 5)
         },
         'spectral_degradation': {
-            'degradation_strength': (0.3, 0.5),
-            'range_percentage': (0.4, 0.6)
+            'degradation_strength': (0.15, 0.35),  # 大幅降低 0.3-0.5 → 0.15-0.35
+            'range_percentage': (0.3, 0.45)  # 减少范围 0.4-0.6 → 0.3-0.45
         },
         'threshold': {
-            'threshold_range': ((80, 120), (70, 130))  # 更宽松但仍安全的阈值范围
+            'threshold_range': ((85, 115), (80, 120))  # 更安全的阈值范围
         }
     }
 }
