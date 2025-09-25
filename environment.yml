@@ -1,0 +1,37 @@
+name: linefuse
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+  - huggingface
+dependencies:
+  - python=3.10
+  - pytorch=2.1.0
+  - torchvision=0.16.0
+  - torchaudio=2.1.0
+  - pytorch-cuda=12.1
+  # 计算机视觉和图像处理
+  - opencv
+  - pillow
+  - matplotlib
+  - numpy
+  - scipy
+  - scikit-learn
+  # 深度学习和机器学习
+  - transformers
+  - accelerate
+  - datasets
+  # Web服务
+  - fastapi
+  - uvicorn
+  # 工具包
+  - pyyaml
+  - tqdm
+  # 只有少数包必须用pip
+  - pip
+  # - pip:
+  #   - albumentations
+  #   - diffusers
+  #   - python-multipart
+  #   - wandb

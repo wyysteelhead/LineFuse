@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Optional
 
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -60,36 +61,102 @@ class OutConv(nn.Module):
         return self.conv(x)
 
 class UNetBaseline(nn.Module):
-    def __init__(self, n_channels=3, n_classes=3, bilinear=True):
+    """
+    U-Net architecture for image deblurring
+
+    Paper: U-Net: Convolutional Networks for Biomedical Image Segmentation
+    Adapted for deblurring tasks with skip connections
+    """
+
+    def __init__(self, in_channels: int = 3, out_channels: int = 3,
+                 features: list = [64, 128, 256, 512], bilinear: bool = True):
+        """
+        Args:
+            in_channels: Number of input channels (3 for RGB)
+            out_channels: Number of output channels (3 for RGB)
+            features: List of feature dimensions for each level
+            bilinear: Use bilinear upsampling instead of transpose convolution
+        """
         super(UNetBaseline, self).__init__()
-        self.n_channels = n_channels
-        self.n_classes = n_classes
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.features = features
         self.bilinear = bilinear
-        
-        self.inc = DoubleConv(n_channels, 64)
-        self.down1 = Down(64, 128)
-        self.down2 = Down(128, 256)
-        self.down3 = Down(256, 512)
+
+        # Encoder (Contracting path)
+        self.inc = DoubleConv(in_channels, features[0])
+        self.down1 = Down(features[0], features[1])
+        self.down2 = Down(features[1], features[2])
+        self.down3 = Down(features[2], features[3])
+
+        # Bottleneck
         factor = 2 if bilinear else 1
-        self.down4 = Down(512, 1024 // factor)
-        
-        self.up1 = Up(1024, 512 // factor, bilinear)
-        self.up2 = Up(512, 256 // factor, bilinear)
-        self.up3 = Up(256, 128 // factor, bilinear)
-        self.up4 = Up(128, 64, bilinear)
-        self.outc = OutConv(64, n_classes)
-    
-    def forward(self, x):
-        x1 = self.inc(x)
-        x2 = self.down1(x1)
-        x3 = self.down2(x2)
-        x4 = self.down3(x3)
-        x5 = self.down4(x4)
-        
-        x = self.up1(x5, x4)
-        x = self.up2(x, x3)
-        x = self.up3(x, x2)
-        x = self.up4(x, x1)
-        logits = self.outc(x)
-        
-        return torch.sigmoid(logits)
+        self.down4 = Down(features[3], features[3] * 2 // factor)
+
+        # Decoder (Expansive path)
+        self.up1 = Up(features[3] * 2, features[3] // factor, bilinear)
+        self.up2 = Up(features[3], features[2] // factor, bilinear)
+        self.up3 = Up(features[2], features[1] // factor, bilinear)
+        self.up4 = Up(features[1], features[0], bilinear)
+
+        # Output layer
+        self.outc = OutConv(features[0], out_channels)
+
+        # Initialize weights
+        self._initialize_weights()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through U-Net
+
+        Args:
+            x: Input blurry image tensor [B, C, H, W]
+
+        Returns:
+            Deblurred image tensor [B, C, H, W]
+        """
+        # Encoder
+        x1 = self.inc(x)      # [B, 64, H, W]
+        x2 = self.down1(x1)   # [B, 128, H/2, W/2]
+        x3 = self.down2(x2)   # [B, 256, H/4, W/4]
+        x4 = self.down3(x3)   # [B, 512, H/8, W/8]
+        x5 = self.down4(x4)   # [B, 1024, H/16, W/16]
+
+        # Decoder with skip connections
+        x = self.up1(x5, x4)  # [B, 512, H/8, W/8]
+        x = self.up2(x, x3)   # [B, 256, H/4, W/4]
+        x = self.up3(x, x2)   # [B, 128, H/2, W/2]
+        x = self.up4(x, x1)   # [B, 64, H, W]
+
+        # Output
+        output = self.outc(x)  # [B, 3, H, W]
+
+        # Use tanh activation for better image generation
+        return torch.tanh(output)
+
+    def _initialize_weights(self):
+        """Initialize model weights using Xavier initialization"""
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+    def get_model_size(self) -> int:
+        """Get total number of parameters"""
+        return sum(p.numel() for p in self.parameters())
+
+    def get_model_info(self) -> dict:
+        """Get model information for logging"""
+        return {
+            'name': 'UNet-Baseline',
+            'in_channels': self.in_channels,
+            'out_channels': self.out_channels,
+            'features': self.features,
+            'bilinear': self.bilinear,
+            'total_params': self.get_model_size(),
+            'trainable_params': sum(p.numel() for p in self.parameters() if p.requires_grad)
+        }

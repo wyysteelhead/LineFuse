@@ -1,1 +1,6 @@
 tests/
+augmented_results/
+dataset/
+*.pyc
+*dataset*/
+CLAUDE.md
