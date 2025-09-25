@@ -167,7 +167,6 @@ def create_comprehensive_blur_demo():
                                 sigma_range = gauss_config['sigma_range'][1]
                             kernel_size = kernel_range[1]  # 使用上限
                             sigma_range = [sigma_range[1], sigma_range[1]]  # 使用上限
-                            print(sigma_range)
                             result_image = blur_generator.gaussian_blur(result_image,
                                                                        kernel_size=kernel_size, sigma_range=sigma_range)
                             effect_log.append(f"gaussian(kernel={kernel_size}, sigma={sigma_range[1]:.2f})")
@@ -312,32 +311,15 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
     print(f"像素完美对齐: {'启用' if pixel_perfect else '禁用'}")
     print(f"纯线条模式: {'启用' if pure_line_only else '禁用'}")
 
-    # 定义难度级别配置
-    difficulty_config = {
-        "easy": {
-            "line_width": 0.6,
-            "blur_strength": 1.5,
-            "contrast_reduction": 0.8,
-            "description": "轻度模糊，线条适中"
-        },
-        "medium": {
-            "line_width": 0.3,
-            "blur_strength": 2.5,
-            "contrast_reduction": 0.7,
-            "description": "中度模糊，线条很细"
-        },
-        "hard": {
-            "line_width": 0.15,
-            "blur_strength": 3.5,
-            "contrast_reduction": 0.6,
-            "description": "重度模糊，线条极细"
-        },
-        "extreme": {
-            "line_width": 0.1,
-            "blur_strength": 4.5,
-            "contrast_reduction": 0.5,
-            "description": "极度模糊，几乎不可见线条"
-        }
+    # DEPRECATED: 使用新的配置系统 src/data/difficulty_config.py
+    # 这个旧配置保留仅用于向后兼容，将来会被移除
+    from src.data.difficulty_config import get_difficulty_config
+
+    # 为向后兼容，构建描述映射
+    difficulty_descriptions = {
+        "easy": "轻度模糊，线条适中",
+        "medium": "中度模糊，线条很细",
+        "hard": "重度模糊，线条极细"
     }
 
     # 检查已有的CSV数据
@@ -449,8 +431,9 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
 
     # 为每个难度级别生成配对的清晰图和模糊图
     for difficulty in difficulty_levels:
-        config = difficulty_config[difficulty]
-        print(f"\n  生成 {difficulty} 难度 ({config['description']})...")
+        config = get_difficulty_config(difficulty)  # 使用新配置系统
+        description = difficulty_descriptions.get(difficulty, f"{difficulty} 难度")
+        print(f"\n  生成 {difficulty} 难度 ({description})...")
 
         difficulty_blur_count = 0
         difficulty_clean_count = 0

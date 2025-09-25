@@ -168,6 +168,7 @@ class BlurGenerator:
         
         return result
     
+    # DEPRECATED: 使用新的配置化系统 apply_base_degradation + apply_random_additional_blur
     def apply_random_blur(self, image: np.ndarray, blur_types: List[str] = None) -> Dict[str, Any]:
         if blur_types is None:
             blur_types = [
@@ -353,6 +354,7 @@ class BlurGenerator:
 
         return np.clip(result, 0, 255).astype(np.uint8)
 
+    # DEPRECATED: 使用新的配置化系统 apply_random_additional_blur 更灵活
     def apply_composite_blur(self, image: np.ndarray, num_ops: int = 2) -> Dict[str, Any]:
         """Apply multiple blur operations in sequence for more realistic degradation"""
         available_ops = [
@@ -457,11 +459,11 @@ class BlurGenerator:
         # Save result
         cv2.imwrite(str(output_path), result)
 
+    # DEPRECATED: 使用新的配置系统 get_difficulty_config() 替代
     def print_scan_blur_with_config(self, image, difficulty_config):
         """基于难度配置的打印扫描模糊效果"""
         blur_strength = difficulty_config['blur_strength']
         contrast_reduction = difficulty_config['contrast_reduction']
-        print ("blur_strength", blur_strength, "contrast_reduction", contrast_reduction)
 
         # 根据难度调整模糊强度
         edge_blur_sigma = 1.5 * blur_strength
@@ -489,6 +491,7 @@ class BlurGenerator:
 
         return result.astype(np.uint8)
 
+    # DEPRECATED: 使用新的配置系统 get_difficulty_config() 替代
     def add_print_noise_with_config(self, image, difficulty_config):
         """基于难度配置的打印噪点效果"""
         blur_strength = difficulty_config['blur_strength']
@@ -532,6 +535,7 @@ class BlurGenerator:
 
         return np.clip(result, 0, 255).astype(np.uint8)
 
+    # DEPRECATED: 使用新的配置系统 get_difficulty_config() 替代
     def add_scan_lines_with_config(self, image, difficulty_config):
         """基于难度配置的扫描线条效果"""
         blur_strength = difficulty_config['blur_strength']
