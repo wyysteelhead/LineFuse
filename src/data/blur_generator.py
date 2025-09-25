@@ -16,43 +16,57 @@ class BlurGenerator:
         np.random.seed(random_seed)
         
     def gaussian_blur(self, image: np.ndarray, kernel_size_range: tuple = (5, 15),
-                     sigma_range: tuple = (1.0, 3.0)) -> np.ndarray:
-        # 确保kernel_size为奇数且在有效范围内
-        min_size = kernel_size_range[0]
-        max_size = kernel_size_range[1]
-
-        # 确保最小值为奇数
-        if min_size % 2 == 0:
-            min_size += 1
-        # 确保最大值为奇数
-        if max_size % 2 == 0:
-            max_size -= 1
-
-        # 确保有效范围
-        if min_size > max_size:
-            min_size = max_size
-
-        # 生成奇数kernel大小
-        if min_size == max_size:
-            kernel_size = min_size
+                     sigma_range: tuple = (1.0, 3.0),
+                     kernel_size: int = None) -> np.ndarray:
+        # 兼容性处理：如果提供了单个kernel_size，使用它；否则从范围中随机选择
+        if kernel_size is not None:
+            selected_kernel_size = kernel_size
         else:
-            kernel_size = random.randrange(min_size, max_size + 1, 2)
+            # 确保kernel_size为奇数且在有效范围内
+            min_size = kernel_size_range[0]
+            max_size = kernel_size_range[1]
+
+            # 确保最小值为奇数
+            if min_size % 2 == 0:
+                min_size += 1
+            # 确保最大值为奇数
+            if max_size % 2 == 0:
+                max_size -= 1
+
+            # 确保有效范围
+            if min_size > max_size:
+                min_size = max_size
+
+            # 生成奇数kernel大小
+            if min_size == max_size:
+                selected_kernel_size = min_size
+            else:
+                selected_kernel_size = random.randrange(min_size, max_size + 1, 2)
+
+        # 确保selected_kernel_size是奇数
+        if selected_kernel_size % 2 == 0:
+            selected_kernel_size += 1
 
         sigma = random.uniform(sigma_range[0], sigma_range[1])
-        return cv2.GaussianBlur(image, (kernel_size, kernel_size), sigma)
+        return cv2.GaussianBlur(image, (selected_kernel_size, selected_kernel_size), sigma)
     
-    def motion_blur(self, image: np.ndarray, kernel_size_range: tuple = (5, 20), 
-                   angle_range: tuple = (0, 180)) -> np.ndarray:
-        kernel_size = random.randint(kernel_size_range[0], kernel_size_range[1])
+    def motion_blur(self, image: np.ndarray, kernel_size_range: tuple = (5, 20),
+                   angle_range: tuple = (0, 180),
+                   kernel_size: int = None) -> np.ndarray:
+        # 兼容性处理：如果提供了单个kernel_size，使用它；否则从范围中随机选择
+        if kernel_size is not None:
+            selected_kernel_size = kernel_size
+        else:
+            selected_kernel_size = random.randint(kernel_size_range[0], kernel_size_range[1])
         angle = random.randint(angle_range[0], angle_range[1])
-        
-        kernel = np.zeros((kernel_size, kernel_size))
-        kernel[int((kernel_size-1)/2), :] = np.ones(kernel_size)
-        kernel = kernel / kernel_size
-        
+
+        kernel = np.zeros((selected_kernel_size, selected_kernel_size))
+        kernel[int((selected_kernel_size-1)/2), :] = np.ones(selected_kernel_size)
+        kernel = kernel / selected_kernel_size
+
         angle_rad = np.deg2rad(angle)
-        rotation_matrix = cv2.getRotationMatrix2D((kernel_size//2, kernel_size//2), angle, 1)
-        kernel = cv2.warpAffine(kernel, rotation_matrix, (kernel_size, kernel_size))
+        rotation_matrix = cv2.getRotationMatrix2D((selected_kernel_size//2, selected_kernel_size//2), angle, 1)
+        kernel = cv2.warpAffine(kernel, rotation_matrix, (selected_kernel_size, selected_kernel_size))
         
         return cv2.filter2D(image, -1, kernel)
     
@@ -283,8 +297,13 @@ class BlurGenerator:
         return result
 
     def add_print_noise(self, image: np.ndarray,
-                       noise_intensity: float = 0.15) -> np.ndarray:
+                       noise_intensity: float = 0.15,
+                       intensity: float = None) -> np.ndarray:
         """添加真实的打印纸张噪点：灰色斑点、纸张纹理"""
+        # 兼容性处理：如果使用了intensity参数，则覆盖noise_intensity
+        if intensity is not None:
+            noise_intensity = intensity
+
         result = image.copy().astype(np.float32)
         h, w = result.shape[:2]
 
@@ -1230,3 +1249,41 @@ class BlurGenerator:
             result[y:y+region_h, x:x+region_w] = mixed_region.astype(np.uint8)
 
         return result
+
+    def compression_blur(self, image: np.ndarray, quality: int = None, quality_range: tuple = (30, 70)) -> np.ndarray:
+        """
+        压缩模糊效果的别名方法 - 兼容main.py中的调用
+
+        Args:
+            image: 输入图像
+            quality: 压缩质量 (1-100，越小压缩越强)
+            quality_range: 质量范围，当quality为None时使用
+
+        Returns:
+            压缩后的图像
+        """
+        if quality is not None:
+            # 单个质量值
+            return self.compression_artifacts(image, quality_range=(quality, quality))
+        else:
+            # 使用范围
+            return self.compression_artifacts(image, quality_range=quality_range)
+
+    def low_resolution_blur(self, image: np.ndarray, downscale_factor: int = None, downscale_factor_range: tuple = (4, 8)) -> np.ndarray:
+        """
+        低分辨率模糊效果的别名方法 - 兼容main.py中的调用
+
+        Args:
+            image: 输入图像
+            downscale_factor: 下采样因子
+            downscale_factor_range: 下采样因子范围，当downscale_factor为None时使用
+
+        Returns:
+            低分辨率处理后的图像
+        """
+        if downscale_factor is not None:
+            # 单个因子值
+            return self.low_resolution_upscale(image, downscale_factor_range=(downscale_factor, downscale_factor))
+        else:
+            # 使用范围
+            return self.low_resolution_upscale(image, downscale_factor_range=downscale_factor_range)
