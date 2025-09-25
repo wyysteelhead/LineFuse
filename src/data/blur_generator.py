@@ -65,7 +65,17 @@ class BlurGenerator:
         
         return decoded_img
     
-    def print_scan_simulation(self, image: np.ndarray, enable_geometric_distortion: bool = False) -> np.ndarray:
+    def print_scan_simulation(self, image: np.ndarray,
+                             enable_geometric_distortion: bool = False,
+                             noise_intensity: float = 0.3,
+                             brightness_contrast_intensity: float = 0.1) -> np.ndarray:
+        """
+        打印扫描模拟效果 - 可配置强度参数
+
+        Args:
+            noise_intensity: 噪声强度 (0-1)
+            brightness_contrast_intensity: 亮度对比度变化强度 (0-1)
+        """
         transforms = []
 
         # 可选的几何变形（旋转、平移、缩放）
@@ -77,15 +87,22 @@ class BlurGenerator:
                 p=0.8
             ))
 
-        # 始终应用的效果：噪声和亮度对比度
-        transforms.extend([
-            A.GaussNoise(var_limit=(10.0, 50.0), mean=0, p=0.7),
-            A.RandomBrightnessContrast(
-                brightness_limit=0.1,
-                contrast_limit=0.1,
-                p=0.8
-            )
-        ])
+        # 可配置强度的效果
+        # 噪声强度: 根据difficulty调整
+        noise_var_max = 10.0 + 40.0 * noise_intensity  # 10-50的范围
+        transforms.append(A.GaussNoise(
+            var_limit=(5.0, noise_var_max),
+            mean=0,
+            p=0.7
+        ))
+
+        # 亮度对比度变化: 根据difficulty调整
+        bc_limit = 0.05 + 0.15 * brightness_contrast_intensity  # 0.05-0.2的范围
+        transforms.append(A.RandomBrightnessContrast(
+            brightness_limit=bc_limit,
+            contrast_limit=bc_limit,
+            p=0.8
+        ))
 
         transform = A.Compose(transforms)
         augmented = transform(image=image)
@@ -709,34 +726,59 @@ class BlurGenerator:
 
         return result
 
-    def apply_single_blur_effect(self, image: np.ndarray, effect_type: str) -> np.ndarray:
+    def apply_single_blur_effect(self, image: np.ndarray, effect_type: str,
+                               intensity: float = 0.5) -> np.ndarray:
         """
         应用单个模糊效果 - 用于演示目的
+        Args:
+            intensity: 效果强度 (0-1)，用于区分easy/medium/hard
         """
         result = image.copy()
 
         if effect_type == 'gaussian':
-            result = self.gaussian_blur(result)
+            # 根据强度调整高斯模糊参数 - 降低强度
+            kernel_size = max(3, int(3 + 4 * intensity))  # 3-7 instead of 3-9
+            if kernel_size % 2 == 0:
+                kernel_size += 1
+            sigma = 0.3 + 1.2 * intensity  # 0.3-1.5 instead of 0.5-2.5
+            result = self.gaussian_blur(result, kernel_size=kernel_size, sigma=sigma)
         elif effect_type == 'motion':
-            result = self.motion_blur(result)
+            # 根据强度调整运动模糊 - 降低强度
+            kernel_size = max(3, int(3 + 5 * intensity))  # 3-8 instead of 3-11
+            result = self.motion_blur(result, kernel_size=kernel_size)
         elif effect_type == 'compression':
-            result = self.compression_blur(result)
+            # 根据强度调整压缩质量 - 提高最低质量
+            quality = int(70 - 40 * intensity)  # 70->30 instead of 80->20
+            result = self.compression_blur(result, quality=quality)
         elif effect_type == 'scan':
-            result = self.print_scan_simulation(result)
+            # 基础扫描效果 - 更简单的噪声
+            result = self.print_scan_simulation(result,
+                                              noise_intensity=0.2 * intensity,
+                                              brightness_contrast_intensity=0.1 * intensity)
         elif effect_type == 'lowres':
-            result = self.low_resolution_blur(result)
+            # 根据强度调整下采样因子 - 降低强度
+            factor = int(2 + 2 * intensity)  # 2->4 instead of 2->6
+            result = self.low_resolution_blur(result, downscale_factor=factor)
         elif effect_type == 'text':
             result = self.add_text_interference(result)
         elif effect_type == 'lines':
             result = self.add_line_interference(result)
         elif effect_type == 'print_scan':
-            result = self.print_scan_simulation(result)
+            # 高级打印扫描效果 - 更强的噪声和对比度变化
+            result = self.print_scan_simulation(result,
+                                              noise_intensity=0.5 + 0.5 * intensity,
+                                              brightness_contrast_intensity=0.2 + 0.3 * intensity)
         elif effect_type == 'localblur':
             result = self.local_blur_degradation(result)
         elif effect_type == 'scan_lines':
             result = self.add_scan_lines(result)
         elif effect_type == 'spectral_degradation':
-            result = self.spectral_line_degradation(result)
+            # 使用配置化参数 - 降低强度
+            strength = 0.1 + 0.4 * intensity  # 0.1-0.5 instead of 0.2-0.8
+            range_pct = 0.2 + 0.3 * intensity  # 0.2-0.5 instead of 0.3-0.6
+            result = self.spectral_line_degradation(result,
+                                                  degradation_strength=strength,
+                                                  range_percentage=range_pct)
         else:
             print(f"未知效果类型: {effect_type}")
 
@@ -744,16 +786,22 @@ class BlurGenerator:
 
     def spectral_line_degradation(self, image: np.ndarray,
                                 x_range: tuple = None,
+                                degradation_strength: float = 0.3,
+                                range_percentage: float = 0.4,
                                 degradation_type: str = 'both') -> np.ndarray:
         """
-        Apply heavy degradation effects specifically to spectral line ranges
-        专门针对光谱线的特定x轴范围进行强化退化处理 - 更明显的模糊效果
+        Apply configurable degradation effects to spectral line ranges
+        专门针对光谱线的特定x轴范围进行可配置强度的退化处理
+
+        Args:
+            degradation_strength: 退化强度 (0-1)
+            range_percentage: 影响范围百分比 (0-1)
         """
         if x_range is None:
-            # Select a more prominent range
+            # Use configurable range percentage
             w = image.shape[1]
-            range_width = int(w * random.uniform(0.3, 0.5))  # 30-50% of image width
-            x_start = random.randint(int(w * 0.1), int(w * 0.5))  # More flexible positioning
+            range_width = int(w * range_percentage)
+            x_start = random.randint(int(w * 0.1), int(w * 0.6))
             x_range = (x_start, min(x_start + range_width, w))
 
         result = image.copy()
@@ -762,35 +810,42 @@ class BlurGenerator:
         # Extract the region of interest
         roi = result[:, x_start:x_end].copy()
 
-        # 1. 温和线条细化 (减弱强度)
+        # 1. 可配置线条细化
         if degradation_type in ['thinning', 'both']:
-            # Reduced erosion for gentler thinning
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))  # 更小的kernel
-            roi = cv2.erode(roi, kernel, iterations=1)  # 减少迭代次数 2→1
+            # 根据强度调整kernel大小和迭代次数
+            kernel_size = max(1, int(1 + 2 * degradation_strength))  # 1-3
+            if kernel_size % 2 == 0:
+                kernel_size += 1
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+            iterations = max(1, int(degradation_strength * 2))  # 0-2次迭代
+            if iterations > 0:
+                roi = cv2.erode(roi, kernel, iterations=iterations)
 
-            # Add mild blur
-            roi = cv2.GaussianBlur(roi, (3, 3), 0.8)  # 减少sigma 1.2→0.8
+            # 可配置模糊强度
+            blur_sigma = 0.3 + 1.2 * degradation_strength  # 0.3-1.5
+            roi = cv2.GaussianBlur(roi, (3, 3), blur_sigma)
 
-        # 2. 温和断续效果 (减弱强度)
+        # 2. 可配置断续效果
         if degradation_type in ['discontinuity', 'both']:
-            # Gentler discontinuity for spectral region
-            gap_density = 0.15  # 降低密度 0.3→0.15
+            gap_density = 0.05 + 0.2 * degradation_strength  # 0.05-0.25
+            gap_size_max = int(2 + 6 * degradation_strength)  # 2-8
             roi = self.line_discontinuity_blur(roi, gap_density=gap_density,
-                                             gap_size_range=(1, 4))  # 减小间隙 (3,8)→(1,4)
+                                             gap_size_range=(1, gap_size_max))
 
-        # 3. 轻微模糊处理 (减弱强度)
-        # Apply gentler motion blur in horizontal direction
-        motion_kernel = np.zeros((1, 5))  # 减小kernel 7→5
-        motion_kernel[0, :] = 1/5
+        # 3. 可配置运动模糊
+        motion_kernel_size = max(3, int(3 + 4 * degradation_strength))  # 3-7
+        motion_kernel = np.zeros((1, motion_kernel_size))
+        motion_kernel[0, :] = 1/motion_kernel_size
         roi = cv2.filter2D(roi, -1, motion_kernel)
 
-        # 4. 轻微降低对比度 (减弱强度)
+        # 4. 可配置对比度降低
+        contrast_factor = 1.0 - 0.3 * degradation_strength  # 1.0-0.7
         if len(roi.shape) == 3:
             roi = roi.astype(np.float32)
-            roi = roi * 0.9 + 255 * 0.1  # 减少对比度降低 0.8→0.9
+            roi = roi * contrast_factor + 255 * (1 - contrast_factor)
             roi = np.clip(roi, 0, 255).astype(np.uint8)
 
-        # Put back the heavily processed region
+        # Put back the processed region
         result[:, x_start:x_end] = roi
 
         return result

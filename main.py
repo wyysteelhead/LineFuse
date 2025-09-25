@@ -237,9 +237,18 @@ def create_comprehensive_blur_demo():
                             effect_log.append(f"spectral_degradation(default)")
 
                     else:
-                        # 其他效果使用默认参数
-                        result_image = blur_generator.apply_single_blur_effect(result_image, effect_name)
-                        effect_log.append(f"{effect_name}(default)")
+                        # 其他效果根据难度使用不同强度
+                        difficulty_intensity_map = {'easy': 0.3, 'medium': 0.5, 'hard': 0.8}
+                        base_intensity = difficulty_intensity_map[difficulty]
+
+                        if intensity_type == 'min':
+                            effect_intensity = base_intensity * 0.5  # 最小强度
+                        else:
+                            effect_intensity = base_intensity * 1.2  # 最大强度
+
+                        result_image = blur_generator.apply_single_blur_effect(result_image, effect_name,
+                                                                             intensity=effect_intensity)
+                        effect_log.append(f"{effect_name}(intensity={effect_intensity:.2f})")
 
                     # 保存结果
                     cv2.imwrite(str(output_path), result_image)
