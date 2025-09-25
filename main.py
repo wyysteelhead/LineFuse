@@ -237,18 +237,32 @@ def create_comprehensive_blur_demo():
                             effect_log.append(f"spectral_degradation(default)")
 
                     else:
-                        # 其他效果根据难度使用不同强度
-                        difficulty_intensity_map = {'easy': 0.3, 'medium': 0.5, 'hard': 0.8}
-                        base_intensity = difficulty_intensity_map[difficulty]
+                        # 其他效果：大多数效果不需要外部intensity参数，有内置的随机性
+                        # 对于需要intensity参数的效果，使用基于配置的合理范围
 
-                        if intensity_type == 'min':
-                            effect_intensity = base_intensity * 0.5  # 最小强度
+                        # 为不同效果定义合理的强度范围
+                        effect_intensity_ranges = {
+                            'text': {'easy': (0.1, 0.2), 'medium': (0.2, 0.4), 'hard': (0.3, 0.5)},
+                            'lines': {'easy': (0.1, 0.2), 'medium': (0.2, 0.4), 'hard': (0.3, 0.5)},
+                            'scan_lines': {'easy': (0.1, 0.2), 'medium': (0.2, 0.4), 'hard': (0.3, 0.5)},
+                            'localblur': {'easy': (0.2, 0.4), 'medium': (0.4, 0.6), 'hard': (0.5, 0.7)},
+                        }
+
+                        if effect_name in effect_intensity_ranges:
+                            # 使用配置化的强度范围
+                            intensity_range = effect_intensity_ranges[effect_name][difficulty]
+                            if intensity_type == 'min':
+                                effect_intensity = intensity_range[0]  # 使用最小值
+                            else:
+                                effect_intensity = intensity_range[1]  # 使用最大值
+
+                            result_image = blur_generator.apply_single_blur_effect(result_image, effect_name,
+                                                                                 intensity=effect_intensity)
+                            effect_log.append(f"{effect_name}(intensity={effect_intensity:.2f})")
                         else:
-                            effect_intensity = base_intensity * 1.2  # 最大强度
-
-                        result_image = blur_generator.apply_single_blur_effect(result_image, effect_name,
-                                                                             intensity=effect_intensity)
-                        effect_log.append(f"{effect_name}(intensity={effect_intensity:.2f})")
+                            # 对于不需要intensity参数的效果（如scan, print_scan），直接调用
+                            result_image = blur_generator.apply_single_blur_effect(result_image, effect_name)
+                            effect_log.append(f"{effect_name}(default)")
 
                     # 保存结果
                     cv2.imwrite(str(output_path), result_image)
