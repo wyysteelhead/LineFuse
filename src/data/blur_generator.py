@@ -586,10 +586,9 @@ class BlurGenerator:
 
     def line_discontinuity_blur(self, image: np.ndarray,
                                gap_density: float = 0.4,
-                               gap_size_range: tuple = (2, 5)) -> np.ndarray:
+                               gap_size_range: tuple = (1, 2)) -> np.ndarray:
         """
-        Create dashed-line effects with many small gaps (not too disconnected)
-        创建虚线效果 - 小间隙但数量多，像虚线一样
+        创建密集小噪点感间隙效果 - 不是大断口，而是像线条被噪点干扰一样
         """
         result = image.copy()
         h, w = result.shape[:2]
@@ -600,78 +599,59 @@ class BlurGenerator:
         else:
             gray = image.copy()
 
-        # 1. 基于Hough变换的线段断续处理
-        edges = cv2.Canny(gray, 50, 150, apertureSize=3)
-        lines = cv2.HoughLinesP(edges, rho=1, theta=np.pi/180, threshold=15,
-                               minLineLength=8, maxLineGap=3)
-
-        gaps_created = 0
-        if lines is not None:
-            for line in lines:
-                x1, y1, x2, y2 = line[0]
-                line_length = np.sqrt((x2-x1)**2 + (y2-y1)**2)
-
-                # Process lines to create dashed-line effect
-                if line_length > 10:  # Process shorter lines too
-                    # 创建虚线效果 - 更多但更小的间隙
-                    num_gaps = max(3, int(line_length * gap_density / 6))  # More gaps
-
-                    for _ in range(num_gaps):
-                        # Random gap position along the line
-                        t = random.uniform(0.1, 0.9)
-                        gap_center_x = int(x1 + t * (x2 - x1))
-                        gap_center_y = int(y1 + t * (y2 - y1))
-
-                        # 小间隙尺寸 - 像虚线的短划
-                        gap_size = random.randint(gap_size_range[0], gap_size_range[1])
-
-                        # Create small circular gaps for dashed effect
-                        cv2.circle(result, (gap_center_x, gap_center_y), gap_size//2,
-                                 (255, 255, 255) if len(result.shape) == 3 else 255, -1)
-                        gaps_created += 1
-
-        # 2. 基于像素密度的智能间隙生成
-        # 找到所有线条像素
-        line_mask = gray < 180  # 更宽松的阈值以捕获更多线条
+        # 找到所有线条像素（暗色像素）
+        line_mask = gray < 200  # 线条通常是暗色
         line_coords = np.where(line_mask)
 
         if len(line_coords[0]) > 0:
-            # 计算虚线效果的小间隙
-            num_pixel_gaps = int(len(line_coords[0]) * gap_density * 0.008)  # 更多小间隙
+            # 大幅增加噪点密度 - 创建密集小间隙噪点感
+            num_noise_points = int(len(line_coords[0]) * gap_density * 0.1)  # 更多噪点
 
-            if num_pixel_gaps > 0:
-                # 随机选择线条像素位置创建小间隙
+            if num_noise_points > 0:
+                # 随机选择线条像素位置创建极小噪点
                 indices = random.sample(range(len(line_coords[0])),
-                                      min(num_pixel_gaps, len(line_coords[0])))
+                                      min(num_noise_points, len(line_coords[0])))
 
                 for idx in indices:
-                    gap_y, gap_x = line_coords[0][idx], line_coords[1][idx]
-                    gap_size = random.randint(gap_size_range[0], gap_size_range[1])
+                    noise_y, noise_x = line_coords[0][idx], line_coords[1][idx]
 
-                    # 只创建小圆形间隙，保持虚线效果简单一致
-                    cv2.circle(result, (gap_x, gap_y), gap_size//2,
-                             (255, 255, 255) if len(result.shape) == 3 else 255, -1)
-                    gaps_created += 1
+                    # 创建极小的噪点间隙 - 像素级的小洞
+                    noise_size = random.randint(gap_size_range[0], gap_size_range[1])
 
-        # 3. 轻微的线条边缘处理，保持虚线效果自然
-        # 减少边缘腐蚀强度，避免过度断开
-        if len(result.shape) == 3:
-            result_gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
-        else:
-            result_gray = result.copy()
+                    # 使用方形噪点替代圆形，更像噪点干扰
+                    y_start = max(0, noise_y - noise_size//2)
+                    y_end = min(h, noise_y + noise_size//2 + 1)
+                    x_start = max(0, noise_x - noise_size//2)
+                    x_end = min(w, noise_x + noise_size//2 + 1)
 
-        # 非常轻微的腐蚀，只是稍微软化边缘
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
-        eroded = cv2.erode(result_gray, kernel, iterations=1)
+                    # 随机化噪点强度 - 有些完全白色，有些半透明
+                    if random.random() < 0.7:  # 70%完全白色噪点
+                        noise_color = 255 if len(result.shape) == 2 else (255, 255, 255)
+                    else:  # 30%半透明噪点
+                        noise_color = 200 if len(result.shape) == 2 else (200, 200, 200)
 
-        # 非常轻微混合，保持绝大部分原图结构
-        if len(result.shape) == 3:
-            eroded_3ch = cv2.cvtColor(eroded, cv2.COLOR_GRAY2BGR)
-            result = cv2.addWeighted(result, 0.95, eroded_3ch, 0.05, 0)  # 极轻的混合
-        else:
-            result = cv2.addWeighted(result, 0.95, eroded, 0.05, 0)
+                    if len(result.shape) == 3:
+                        result[y_start:y_end, x_start:x_end] = noise_color
+                    else:
+                        result[y_start:y_end, x_start:x_end] = noise_color
 
-        # print(f"  虚线效果处理: 创建了 {gaps_created} 个小间隙")
+            # 添加额外的随机噪点模拟扫描干扰
+            extra_noise_points = int(h * w * gap_density * 0.0001)  # 稀疏的背景噪点
+            for _ in range(extra_noise_points):
+                rand_y = random.randint(0, h-1)
+                rand_x = random.randint(0, w-1)
+
+                # 只在线条附近添加噪点
+                if gray[rand_y, rand_x] < 220:  # 在灰色/线条区域附近
+                    noise_size = random.randint(1, 2)  # 超小噪点
+                    if len(result.shape) == 3:
+                        result[rand_y:rand_y+noise_size, rand_x:rand_x+noise_size] = (240, 240, 240)
+                    else:
+                        result[rand_y:rand_y+noise_size, rand_x:rand_x+noise_size] = 240
+
+        # 轻微的高斯模糊软化噪点边缘，让效果更自然
+        result = cv2.GaussianBlur(result, (3, 3), 0.5)
+
         return result
 
     def regional_line_variations(self, image: np.ndarray,
@@ -1176,20 +1156,35 @@ class BlurGenerator:
         gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY) if len(result.shape) == 3 else result.copy()
         line_mask = gray < 180  # 线条通常是暗色的
 
-        # 1. 线条细化 - 使用形态学腐蚀
+        # 1. 增强的线条细化 - 多级腐蚀确保可见效果
         if thinning_strength > 0:
-            kernel_size = max(1, int(3 * thinning_strength))
+            # 使用更大的kernel和更多迭代来确保明显效果
+            kernel_size = max(3, int(5 * thinning_strength))  # 增加kernel大小
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
-            # 仅在线条区域应用腐蚀
-            thinned_gray = cv2.erode(gray, kernel, iterations=1)
-            # 混合原图和细化结果
-            alpha = 1 - thinning_strength
-            gray = cv2.addWeighted(gray, alpha, thinned_gray, thinning_strength, 0)
 
-        # 2. 线条变淡 - 增加线条区域的亮度
+            # 多次迭代腐蚀，增强细化效果
+            iterations = max(1, int(2 * thinning_strength))
+            thinned_gray = cv2.erode(gray, kernel, iterations=iterations)
+
+            # 减少混合比例，让细化效果更明显
+            alpha = max(0.3, 1 - thinning_strength * 1.5)  # 更强的细化混合
+            gray = cv2.addWeighted(gray, alpha, thinned_gray, 1 - alpha, 0)
+
+        # 2. 增强的线条变淡 - 更明显的亮度增加
         if fading_strength > 0:
-            fade_amount = int(50 * fading_strength)  # 最多增加50的亮度
-            gray[line_mask] = np.clip(gray[line_mask] + fade_amount, 0, 255)
+            # 增加变淡强度，使效果更明显
+            fade_amount = int(80 * fading_strength)  # 增加到80最大亮度增加
+
+            # 重新检测线条区域（因为细化后可能有变化）
+            current_line_mask = gray < 180
+
+            # 分级变淡 - 不同区域不同程度的变淡
+            gray[current_line_mask] = np.clip(gray[current_line_mask] + fade_amount, 0, 255)
+
+            # 额外的边缘变淡效果
+            if fading_strength > 0.5:  # 高强度时添加边缘处理
+                edge_mask = cv2.Canny(gray, 50, 150) > 0
+                gray[edge_mask] = np.clip(gray[edge_mask] + fade_amount//2, 0, 255)
 
         # 转换回原始色彩空间
         if len(result.shape) == 3:
@@ -1217,20 +1212,20 @@ class BlurGenerator:
         h, w = result.shape[:2]
 
         for i in range(num_regions):
-            # 随机选择区域位置和大小
-            region_w = random.randint(w//8, w//3)  # 区域宽度
-            region_h = random.randint(h//8, h//3)  # 区域高度
+            # 增大区域尺寸以确保可见效果
+            region_w = random.randint(w//6, w//2)  # 更大的区域宽度
+            region_h = random.randint(h//6, h//2)  # 更大的区域高度
             x = random.randint(0, w - region_w)
             y = random.randint(0, h - region_h)
 
             # 提取区域
             region = result[y:y+region_h, x:x+region_w].copy()
 
-            # 应用高斯模糊
-            kernel_size = max(3, int(7 * blur_intensity))
+            # 增强局部模糊效果
+            kernel_size = max(7, int(15 * blur_intensity))  # 更大的kernel
             if kernel_size % 2 == 0:  # 确保是奇数
                 kernel_size += 1
-            sigma = 1.0 + 2.0 * blur_intensity
+            sigma = 2.0 + 4.0 * blur_intensity  # 更大的sigma
             blurred_region = cv2.GaussianBlur(region, (kernel_size, kernel_size), sigma)
 
             # 创建渐变混合蒙版，避免硬边缘
@@ -1248,8 +1243,9 @@ class BlurGenerator:
             if len(result.shape) == 3:
                 mask = np.stack([mask] * 3, axis=-1)
 
-            # 混合原始区域和模糊区域
-            mixed_region = region * (1 - mask * blur_intensity) + blurred_region * (mask * blur_intensity)
+            # 增强混合效果，让模糊更明显
+            enhanced_intensity = min(1.0, blur_intensity * 1.5)  # 增强强度
+            mixed_region = region * (1 - mask * enhanced_intensity) + blurred_region * (mask * enhanced_intensity)
             result[y:y+region_h, x:x+region_w] = mixed_region.astype(np.uint8)
 
         return result
