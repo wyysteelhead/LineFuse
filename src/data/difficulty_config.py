@@ -54,25 +54,25 @@ DIFFICULTY_CONFIG = {
 
     'medium': {
         'name': '中等',
-        'base_intensity_range': (0.06, 0.15),  # 进一步降低基础强度 0.08-0.18 → 0.06-0.15
-        'additional_intensity_range': (0.12, 0.22),  # 降低额外效果强度 0.15-0.25 → 0.12-0.22
-        'additional_effects_count': (0, 1),  # 保持较少的额外效果
+        'base_intensity_range': (0.15, 0.25),  # 提高基础强度确保足够模糊
+        'additional_intensity_range': (0.2, 0.3),  # 提高额外效果强度
+        'additional_effects_count': (1, 1),  # 确保每张图都有1个额外效果
         'line_width': 0.3,
 
         'regional_thinning': {
-            'num_regions': (0, 1),  # 允许跳过 (1, 1) → (0, 1)
-            'thinning_strength': (0.1, 0.25),  # 进一步降低 0.15-0.3 → 0.1-0.25
+            'num_regions': (1, 2),  # 确保有区域细化 (0, 1) → (1, 2)
+            'thinning_strength': (0.3, 0.5),  # 大幅提高让线条变化明显 0.1-0.25 → 0.3-0.5
             'color_variation': False  # 暂时禁用颜色变化
         },
         'line_discontinuity': {
-            'gap_density': (0.02, 0.06),  # 进一步降低 0.04-0.08 → 0.02-0.06
-            'gap_size_range': ((1, 1), (1, 1))  # 最小间隙 (1, 1), (1, 2) → (1, 1), (1, 1)
+            'gap_density': (0.08, 0.15),  # 提高虚线密度 0.02-0.06 → 0.08-0.15
+            'gap_size_range': ((1, 2), (1, 3))  # 增大间隙 (1, 1), (1, 1) → (1, 2), (1, 3)
         },
         'print_noise': {
-            'noise_intensity': (0.003, 0.012)  # 进一步降低 0.005-0.015 → 0.003-0.012
+            'noise_intensity': (0.01, 0.025)  # 提高噪点 0.003-0.012 → 0.01-0.025
         },
         'background_variation': {
-            'intensity': (0.06, 0.12)  # 进一步降低 0.08-0.15 → 0.06-0.12
+            'intensity': (0.1, 0.2)  # 提高背景变化 0.06-0.12 → 0.1-0.2
         },
 
         'gaussian_blur': {
@@ -99,25 +99,25 @@ DIFFICULTY_CONFIG = {
 
     'hard': {
         'name': '困难',
-        'base_intensity_range': (0.12, 0.25),  # 大幅降低 0.25-0.4 → 0.12-0.25
-        'additional_intensity_range': (0.2, 0.35),  # 大幅降低 0.35-0.5 → 0.2-0.35
-        'additional_effects_count': (0, 2),  # 减少额外效果 (1, 3) → (0, 2)
+        'base_intensity_range': (0.25, 0.35),  # 提高基础强度确保比medium更模糊
+        'additional_intensity_range': (0.3, 0.4),  # 提高额外效果强度
+        'additional_effects_count': (1, 2),  # 确保有1-2个额外效果
         'line_width': 0.15,
 
         'regional_thinning': {
-            'num_regions': (1, 2),  # 减少区域 (2, 3) → (1, 2)
-            'thinning_strength': (0.2, 0.4),  # 大幅降低 0.4-0.7 → 0.2-0.4
+            'num_regions': (2, 3),  # 增加区域数量 (1, 2) → (2, 3)
+            'thinning_strength': (0.4, 0.6),  # 提高强度让变化更明显 0.2-0.4 → 0.4-0.6
             'color_variation': False  # 暂时禁用颜色变化
         },
         'line_discontinuity': {
-            'gap_density': (0.06, 0.15),  # 大幅降低 0.12-0.25 → 0.06-0.15
-            'gap_size_range': ((1, 2), (1, 3))  # 减小间隙
+            'gap_density': (0.12, 0.22),  # 提高虚线密度 0.06-0.15 → 0.12-0.22
+            'gap_size_range': ((1, 3), (2, 4))  # 增大间隙
         },
         'print_noise': {
-            'noise_intensity': (0.008, 0.025)  # 大幅降低 0.02-0.05 → 0.008-0.025
+            'noise_intensity': (0.015, 0.04)  # 提高噪点 0.008-0.025 → 0.015-0.04
         },
         'background_variation': {
-            'intensity': (0.12, 0.22)  # 降低 0.2-0.35 → 0.12-0.22
+            'intensity': (0.15, 0.28)  # 提高背景变化 0.12-0.22 → 0.15-0.28
         },
 
         'gaussian_blur': {
