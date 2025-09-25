@@ -663,12 +663,12 @@ class BlurGenerator:
             effect_type = random.choice(['ultra_thin', 'broken_lines', 'faded_lines'])
 
             if effect_type == 'ultra_thin':
-                # 1. 超细线条效果 - 强化腐蚀让线条显著变细
-                kernel_size = max(3, int(4 * thinning_strength))  # 更大的kernel
+                # 1. 极细线条效果 - 更强的腐蚀让线条非常细
+                kernel_size = max(4, int(6 * thinning_strength))  # 更大的kernel
                 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
-                processed_region = cv2.erode(region, kernel, iterations=2)  # 更多迭代
-                # 轻微膨胀避免完全消失
-                small_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+                processed_region = cv2.erode(region, kernel, iterations=3)  # 更多迭代
+                # 微调膨胀避免完全消失但保持超细效果
+                small_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (1, 1))
                 processed_region = cv2.dilate(processed_region, small_kernel, iterations=1)
 
             elif effect_type == 'broken_lines':
@@ -682,16 +682,16 @@ class BlurGenerator:
                 # 找到线条像素
                 line_pixels = np.where(gray_region < 180)  # 更宽泛的线条检测
                 if len(line_pixels[0]) > 0:
-                    # 移除大量像素创造断线效果
-                    removal_ratio = 0.25 * thinning_strength  # 更高的移除比例
+                    # 移除更多像素创造戏剧性断线效果
+                    removal_ratio = 0.4 * thinning_strength  # 大幅增加移除比例
                     num_pixels_to_remove = int(len(line_pixels[0]) * removal_ratio)
                     if num_pixels_to_remove > 0:
                         indices = random.sample(range(len(line_pixels[0])),
                                               min(num_pixels_to_remove, len(line_pixels[0])))
-                        # 创建更大的间隙
+                        # 创建更大更明显的间隙
                         for idx in indices:
                             y_pos, x_pos = line_pixels[0][idx], line_pixels[1][idx]
-                            gap_size = random.randint(3, 7)  # 更大的间隙
+                            gap_size = random.randint(5, 12)  # 更大的间隙增强视觉效果
                             y1 = max(0, y_pos - gap_size//2)
                             y2 = min(processed_region.shape[0], y_pos + gap_size//2)
                             x1 = max(0, x_pos - gap_size//2)
@@ -709,9 +709,9 @@ class BlurGenerator:
                 else:
                     gray_region = processed_region.copy()
 
-                # 找到线条区域并褪色
+                # 找到线条区域并大幅褪色
                 fade_mask = gray_region < 180
-                fade_intensity = 80 + int(60 * thinning_strength)  # 褪色强度
+                fade_intensity = 120 + int(80 * thinning_strength)  # 更强的褪色强度
                 if len(processed_region.shape) == 3:
                     for c in range(3):
                         channel = processed_region[:, :, c].astype(np.float32)
@@ -746,8 +746,9 @@ class BlurGenerator:
                         channel[line_mask] += color_shift[c]
                     processed_region = np.clip(processed_region, 0, 255).astype(np.uint8)
 
-            # 戏剧性混合 - 让效果非常明显
-            alpha = 0.85 + 0.1 * min(thinning_strength, 1.0)  # 非常强的混合比例
+            # 极强混合 - 让线条变化效果非常显著
+            alpha = 0.9 + 0.05 * min(thinning_strength, 2.0)  # 极强的混合比例
+            alpha = min(alpha, 0.98)  # 确保不完全替换
             final_region = cv2.addWeighted(region, 1-alpha, processed_region, alpha, 0)
 
             # 应用到结果图像

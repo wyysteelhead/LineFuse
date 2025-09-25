@@ -57,14 +57,14 @@ DIFFICULTY_CONFIG = {
         'name': '中等',
         'base_intensity_range': (0.15, 0.25),  # 提高基础强度确保足够模糊
         'additional_intensity_range': (0.2, 0.35),  # 提高额外效果强度
-        'additional_effects_count': (1, 2),  # 确保每张图都有1-2个额外效果
+        'additional_effects_count': (0, 1),  # 减少额外效果让线条变化更突出
         'line_width': 0.3,
 
         'regional_thinning': {
-            'num_regions': (1, 2),  # 确保有区域细化 (0, 1) → (1, 2)
-            'thinning_strength': (0.2, 0.4),  # 大幅提高让线条变化明显 0.1-0.25 → 0.2-0.4
+            'num_regions': (2, 3),  # 增加区域数量让变化更明显 (1, 2) → (2, 3)
+            'thinning_strength': (0.6, 1.0),  # 大幅增强线条变化强度 0.2-0.4 → 0.6-1.0
             'region_size_range': ((180, 300), (250, 400)),  # Medium: 中等区域范围
-            'color_variation': False  # 暂时禁用颜色变化
+            'color_variation': True  # 启用颜色变化增强视觉对比
         },
         'line_discontinuity': {
             'gap_density': (0.06, 0.15),  # 提高虚线密度 0.02-0.06 → 0.06-0.15
@@ -78,11 +78,11 @@ DIFFICULTY_CONFIG = {
         },
 
         'gaussian_blur': {
-            'kernel_size_range': ((3, 7), (5, 9)),  # 增大kernel确保足够模糊
-            'sigma_range': ((0.5, 1.0), (0.8, 1.5))  # 增大sigma确保足够模糊
+            'kernel_size_range': ((3, 5), (3, 5)),  # 大幅降低kernel避免掩盖线条变化
+            'sigma_range': ((0.3, 0.6), (0.5, 0.8))  # 大幅降低sigma保持线条可见性
         },
         'motion_blur': {
-            'kernel_size_range': ((3, 8), (5, 12))  # 增大kernel确保足够模糊
+            'kernel_size_range': ((3, 5), (3, 7))  # 大幅降低kernel保持线条细节
         },
         'compression': {
             'quality_range': ((25, 50), (40, 65))  # 降低质量增加压缩伪影
@@ -103,14 +103,14 @@ DIFFICULTY_CONFIG = {
         'name': '困难',
         'base_intensity_range': (0.25, 0.35),  # 提高基础强度确保比medium更模糊
         'additional_intensity_range': (0.35, 0.5),  # 提高额外效果强度
-        'additional_effects_count': (1, 3),  # 确保有1-3个额外效果
+        'additional_effects_count': (0, 2),  # 减少额外效果突出线条变化特征
         'line_width': 0.15,
 
         'regional_thinning': {
-            'num_regions': (2, 3),  # 增加区域数量 (1, 2) → (2, 3)
-            'thinning_strength': (0.3, 0.5),  # 提高强度让变化更明显 0.2-0.4 → 0.3-0.5
+            'num_regions': (3, 4),  # 更多区域数量让变化更戏剧性 (2, 3) → (3, 4)
+            'thinning_strength': (0.8, 1.5),  # 极强的线条变化强度 0.3-0.5 → 0.8-1.5
             'region_size_range': ((250, 400), (300, 500)),  # Hard: 最大区域范围
-            'color_variation': False  # 暂时禁用颜色变化
+            'color_variation': True  # 启用颜色变化创造最强对比
         },
         'line_discontinuity': {
             'gap_density': (0.15, 0.3),  # 提高虚线密度 0.06-0.15 → 0.15-0.3
@@ -124,11 +124,11 @@ DIFFICULTY_CONFIG = {
         },
 
         'gaussian_blur': {
-            'kernel_size_range': ((5, 9), (7, 13)),  # 更大kernel确保比medium更模糊
-            'sigma_range': ((0.8, 1.8), (1.2, 2.5))  # 更大sigma确保比medium更模糊
+            'kernel_size_range': ((3, 7), (5, 7)),  # 降低kernel让线条变化可见
+            'sigma_range': ((0.5, 1.0), (0.7, 1.2))  # 降低sigma保持线条细节可辨识
         },
         'motion_blur': {
-            'kernel_size_range': ((5, 12), (8, 16))  # 更大kernel确保比medium更模糊
+            'kernel_size_range': ((3, 7), (5, 9))  # 降低kernel避免完全模糊线条
         },
         'compression': {
             'quality_range': ((15, 40), (25, 55))  # 更低质量确保明显压缩伪影
