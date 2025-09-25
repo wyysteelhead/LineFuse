@@ -32,16 +32,16 @@ DIFFICULTY_CONFIG = {
         # 额外效果参数范围
         'gaussian_blur': {
             'kernel_size_range': ((3, 5), (3, 7)),
-            'sigma_range': ((0.3, 0.8), (0.5, 1.2))
+            'sigma_range': ((0.3, 0.6), (0.5, 0.8))  # 修复：降低重叠，增加区分度
         },
         'motion_blur': {
-            'kernel_size_range': ((3, 6), (3, 8))
+            'kernel_size_range': ((3, 5), (3, 7))  # 修复：增加kernel范围，确保有模糊效果
         },
         'compression': {
             'quality_range': ((50, 80), (40, 70))
         },
         'lowres': {
-            'downscale_factor_range': ((2, 3), (2, 4))
+            'downscale_factor_range': ((0, 1), (1, 2))
         },
         'spectral_degradation': {
             'degradation_strength': (0.1, 0.2),
@@ -49,6 +49,23 @@ DIFFICULTY_CONFIG = {
         },
         'threshold': {
             'threshold_range': ((50, 80), (45, 85))  # 更低的阈值，保护线条区域
+        },
+
+        # 新增效果配置
+        'scan': {
+            'blur_strength': 0.8,           # 扫描模糊强度
+            'contrast_reduction': 0.9,      # 对比度降低程度
+            'noise_level': 0.1              # 扫描噪声等级
+        },
+        'text': {
+            'num_texts': (1, 2),            # 文本数量范围
+            'font_size': (12, 18),          # 字体大小范围
+            'opacity': (0.3, 0.5)           # 文本透明度范围
+        },
+        'lines': {
+            'num_lines': (1, 2),            # 干扰线数量范围
+            'thickness': (1, 2),            # 线条粗细范围
+            'opacity': (0.4, 0.6)           # 线条透明度范围
         }
     },
 
@@ -76,17 +93,17 @@ DIFFICULTY_CONFIG = {
         },
 
         'gaussian_blur': {
-            'kernel_size_range': ((3, 5), (3, 5)),  # 大幅降低kernel避免掩盖线条变化
-            'sigma_range': ((0.3, 0.6), (0.5, 0.8))  # 大幅降低sigma保持线条可见性
+            'kernel_size_range': ((5, 7), (7, 9)),  # 修复：中等难度增加模糊
+            'sigma_range': ((0.8, 1.2), (1.0, 1.5))  # 修复：增加区分度
         },
         'motion_blur': {
-            'kernel_size_range': ((3, 5), (3, 7))  # 大幅降低kernel保持线条细节
+            'kernel_size_range': ((5, 7), (5, 9))  # 修复：中等难度增加模糊
         },
         'compression': {
-            'quality_range': ((25, 50), (40, 65))  # 降低质量增加压缩伪影
+            'quality_range': ((40, 65), (25, 50))  # 降低质量增加压缩伪影
         },
         'lowres': {
-            'downscale_factor_range': ((2, 4), (3, 5))  # 增加下采样确保模糊
+            'downscale_factor_range': ((1, 2), (1, 3))  # 增加下采样确保模糊
         },
         'spectral_degradation': {
             'degradation_strength': (0.2, 0.35),  # 增加强度确保明显退化
@@ -94,6 +111,23 @@ DIFFICULTY_CONFIG = {
         },
         'threshold': {
             'threshold_range': ((60, 90), (50, 95))  # 更低的阈值，确保不影响线条抗锯齿
+        },
+
+        # 新增效果配置 - 中等难度
+        'scan': {
+            'blur_strength': 1.2,           # 中等扫描模糊强度
+            'contrast_reduction': 0.8,      # 更多对比度降低
+            'noise_level': 0.15             # 更多扫描噪声
+        },
+        'text': {
+            'num_texts': (2, 3),            # 更多文本数量
+            'font_size': (14, 22),          # 更大字体大小
+            'opacity': (0.4, 0.6)           # 更高透明度
+        },
+        'lines': {
+            'num_lines': (2, 3),            # 更多干扰线
+            'thickness': (2, 3),            # 更粗线条
+            'opacity': (0.5, 0.7)           # 更高透明度
         }
     },
 
@@ -121,17 +155,17 @@ DIFFICULTY_CONFIG = {
         },
 
         'gaussian_blur': {
-            'kernel_size_range': ((3, 7), (5, 7)),  # 降低kernel让线条变化可见
-            'sigma_range': ((0.5, 1.0), (0.7, 1.2))  # 降低sigma保持线条细节可辨识
+            'kernel_size_range': ((7, 11), (9, 13)),  # 修复：困难难度最大模糊
+            'sigma_range': ((1.5, 2.0), (1.8, 2.5))  # 修复：最大区分度
         },
         'motion_blur': {
-            'kernel_size_range': ((3, 7), (5, 9))  # 降低kernel避免完全模糊线条
+            'kernel_size_range': ((7, 11), (9, 15))  # 修复：困难难度最大模糊
         },
         'compression': {
-            'quality_range': ((15, 40), (25, 55))  # 更低质量确保明显压缩伪影
+            'quality_range': ((25, 55), (15, 40))  # 更低质量确保明显压缩伪影
         },
         'lowres': {
-            'downscale_factor_range': ((3, 5), (4, 6))  # 更大下采样因子确保更模糊
+            'downscale_factor_range': ((2, 4), (3, 5))  # 更大下采样因子确保更模糊
         },
         'spectral_degradation': {
             'degradation_strength': (0.3, 0.5),  # 更强的退化确保比medium更明显
@@ -139,6 +173,23 @@ DIFFICULTY_CONFIG = {
         },
         'threshold': {
             'threshold_range': ((70, 100), (60, 105))  # 更低的阈值，避免线条消失
+        },
+
+        # 新增效果配置 - 困难难度
+        'scan': {
+            'blur_strength': 1.8,           # 最强扫描模糊
+            'contrast_reduction': 0.7,      # 最大对比度降低
+            'noise_level': 0.25             # 最多扫描噪声
+        },
+        'text': {
+            'num_texts': (3, 5),            # 最多文本数量
+            'font_size': (16, 28),          # 最大字体范围
+            'opacity': (0.5, 0.8)           # 最高透明度
+        },
+        'lines': {
+            'num_lines': (3, 5),            # 最多干扰线
+            'thickness': (2, 4),            # 最粗线条
+            'opacity': (0.6, 0.8)           # 最高透明度
         }
     }
 }
