@@ -19,8 +19,8 @@ DIFFICULTY_CONFIG = {
             'num_regions': (0, 1),            # Easy: 0-1个区域，保持大部分正常
         },
         'line_discontinuity': {
-            'gap_density': (0.15, 0.25),  # 密集虚线：高覆盖率但小间隙
-            'gap_size_range': ((1, 2), (1, 3))  # 小间隙：1-3像素
+            'gap_density': (0.05, 0.08),  # 温和虚线：5-8%覆盖率
+            'gap_size_range': ((1, 1), (1, 2))  # 真正小间隙：1-2像素
         },
         'print_noise': {
             'noise_intensity': (0.002, 0.008)  # 进一步降低 0.005-0.015 → 0.002-0.008
@@ -82,8 +82,8 @@ DIFFICULTY_CONFIG = {
             'num_regions': (1, 2),            # Medium: 1-2个区域
         },
         'line_discontinuity': {
-            'gap_density': (0.25, 0.35),  # 中等密集虚线：更高覆盖率
-            'gap_size_range': ((1, 3), (2, 3))  # 小间隙：1-3像素
+            'gap_density': (0.08, 0.12),  # 中等虚线：8-12%覆盖率
+            'gap_size_range': ((1, 2), (1, 2))  # 小间隙：1-2像素
         },
         'print_noise': {
             'noise_intensity': (0.008, 0.025)  # 提高噪点 0.003-0.012 → 0.008-0.025
@@ -144,8 +144,8 @@ DIFFICULTY_CONFIG = {
             'num_regions': (1, 3),            # Hard: 1-3个区域
         },
         'line_discontinuity': {
-            'gap_density': (0.35, 0.5),  # 高密集虚线：最高覆盖率但仍小间隙
-            'gap_size_range': ((2, 3), (2, 3))  # 小间隙：2-3像素（稍大但仍小）
+            'gap_density': (0.12, 0.15),  # 高虚线：12-15%覆盖率（仍然保守）
+            'gap_size_range': ((1, 2), (2, 2))  # 小间隙：1-2像素
         },
         'print_noise': {
             'noise_intensity': (0.02, 0.05)  # 提高噪点 0.008-0.025 → 0.02-0.05

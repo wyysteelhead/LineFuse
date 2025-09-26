@@ -585,12 +585,12 @@ class BlurGenerator:
         return image
 
     def line_discontinuity_blur(self, image: np.ndarray,
-                               gap_density: float = 0.4,
+                               gap_density: float = 0.1,
                                gap_size_range: tuple = (1, 2)) -> np.ndarray:
         """
-        创建密集虚线效果 - 大量细小间隙，像虚线图案
-        gap_density: 控制虚线的密集程度（范围大但间隙小）
-        gap_size_range: 控制单个间隙大小（始终很小，1-3像素）
+        创建温和虚线效果 - 规律性小间隙，保持线条主体连续
+        gap_density: 控制虚线间隔频率（0.05-0.15，低频率高质量）
+        gap_size_range: 单个间隙大小（1-2像素，真正的小间隙）
         """
         result = image.copy()
         h, w = result.shape[:2]
@@ -601,54 +601,46 @@ class BlurGenerator:
         else:
             gray = image.copy()
 
-        # 找到所有线条像素（暗色像素）
-        line_mask = gray < 200  # 线条通常是暗色
+        # 找到线条像素（暗色像素）
+        line_mask = gray < 180  # 稍微放宽线条检测
         line_coords = np.where(line_mask)
 
         if len(line_coords[0]) > 0:
-            # 密集虚线策略：大范围覆盖，但每个间隙都很小
-            # gap_density现在控制覆盖范围，而不是间隙大小
-            coverage_ratio = gap_density  # 0.1-0.4的范围覆盖
-            num_dash_gaps = int(len(line_coords[0]) * coverage_ratio)
+            # 温和虚线策略：低密度但规律性的小间隙
+            # 大幅降低覆盖率，确保线条主体保持连续
+            safe_coverage = min(0.15, gap_density)  # 强制限制最大15%覆盖率
+            num_dash_gaps = int(len(line_coords[0]) * safe_coverage)
 
             if num_dash_gaps > 0:
-                # 随机选择线条像素位置创建小间隙
-                indices = random.sample(range(len(line_coords[0])),
-                                      min(num_dash_gaps, len(line_coords[0])))
+                # 均匀分布而非随机分布，创造更规律的虚线感
+                step = max(1, len(line_coords[0]) // num_dash_gaps)
+                indices = list(range(0, len(line_coords[0]), step))[:num_dash_gaps]
 
                 for idx in indices:
                     gap_y, gap_x = line_coords[0][idx], line_coords[1][idx]
 
-                    # 强制小间隙 - 虚线效果
-                    gap_size = min(3, random.randint(gap_size_range[0], gap_size_range[1]))  # 最大3像素
+                    # 真正的小间隙 - 1-2像素
+                    gap_size = min(2, max(1, random.randint(gap_size_range[0], gap_size_range[1])))
 
-                    # 创建小方形间隙
-                    y_start = max(0, gap_y - gap_size//2)
-                    y_end = min(h, gap_y + gap_size//2 + 1)
-                    x_start = max(0, gap_x - gap_size//2)
-                    x_end = min(w, gap_x + gap_size//2 + 1)
-
-                    # 使用背景色填充间隙（制造虚线效果）
-                    if len(result.shape) == 3:
-                        result[y_start:y_end, x_start:x_end] = (255, 255, 255)  # 白色间隙
-                    else:
-                        result[y_start:y_end, x_start:x_end] = 255  # 白色间隙
-
-            # 添加线条边缘的微小扰动，增强虚线感
-            edge_disturbance = int(len(line_coords[0]) * gap_density * 0.1)
-            if edge_disturbance > 0:
-                edge_indices = random.sample(range(len(line_coords[0])),
-                                           min(edge_disturbance, len(line_coords[0])))
-
-                for idx in edge_indices:
-                    disturb_y, disturb_x = line_coords[0][idx], line_coords[1][idx]
-
-                    # 单像素扰动 - 让线条边缘不那么完美
-                    if random.random() < 0.5:  # 50%概率
+                    # 单像素或双像素间隙
+                    if gap_size == 1:
+                        # 单像素间隙
                         if len(result.shape) == 3:
-                            result[disturb_y, disturb_x] = (220, 220, 220)  # 浅灰扰动
+                            result[gap_y, gap_x] = (255, 255, 255)
                         else:
-                            result[disturb_y, disturb_x] = 220  # 浅灰扰动
+                            result[gap_y, gap_x] = 255
+                    else:
+                        # 2像素间隙（十字形）
+                        if gap_y > 0:
+                            result[gap_y-1, gap_x] = 255 if len(result.shape) == 2 else (255, 255, 255)
+                        if gap_y < h-1:
+                            result[gap_y+1, gap_x] = 255 if len(result.shape) == 2 else (255, 255, 255)
+                        if gap_x > 0:
+                            result[gap_y, gap_x-1] = 255 if len(result.shape) == 2 else (255, 255, 255)
+                        if gap_x < w-1:
+                            result[gap_y, gap_x+1] = 255 if len(result.shape) == 2 else (255, 255, 255)
+                        # 中心点
+                        result[gap_y, gap_x] = 255 if len(result.shape) == 2 else (255, 255, 255)
 
         return result
 
