@@ -872,25 +872,25 @@ class BlurGenerator:
             variation_type = random.choice(['global', 'local', 'gradient'])
 
         if variation_type == 'global':
-            # 整体颜色偏移 - 模拟整体光线变化
+            # 整体颜色偏移 - 模拟整体光线变化 (增强效果)
             if len(result.shape) == 3:
-                # 生成整体色偏
+                # 生成整体色偏 - 大幅增加强度让效果明显
                 color_shift = np.array([
-                    random.uniform(-30*intensity, 30*intensity),  # R
-                    random.uniform(-25*intensity, 25*intensity),  # G
-                    random.uniform(-35*intensity, 35*intensity)   # B
+                    random.uniform(-80*intensity, 80*intensity),  # R - 增强2.7倍
+                    random.uniform(-70*intensity, 70*intensity),  # G - 增强2.8倍
+                    random.uniform(-90*intensity, 90*intensity)   # B - 增强2.6倍
                 ])
 
-                # 应用到背景区域（亮像素）
+                # 使用更宽松的背景遮罩，包含更多像素
                 for c in range(3):
                     channel = result[:, :, c]
-                    bg_mask = channel > 200  # 背景像素
+                    bg_mask = channel > 150  # 降低阈值：200→150，包含更多背景像素
                     channel[bg_mask] += color_shift[c]
 
             else:
-                # 灰度图的亮度变化
-                brightness_shift = random.uniform(-20*intensity, 20*intensity)
-                bg_mask = result > 200
+                # 灰度图的亮度变化 - 增强效果
+                brightness_shift = random.uniform(-60*intensity, 60*intensity)  # 增强3倍
+                bg_mask = result > 150  # 降低阈值
                 result[bg_mask] += brightness_shift
 
         elif variation_type == 'local':
@@ -915,37 +915,37 @@ class BlurGenerator:
                         mask[y, x] = max(0, 1 - dist/max_dist)
 
                 if len(result.shape) == 3:
-                    # 彩色图的局部色偏
+                    # 彩色图的局部色偏 - 增强效果让变化更明显
                     local_color_shift = np.array([
-                        random.uniform(-25*intensity, 25*intensity),
-                        random.uniform(-20*intensity, 20*intensity),
-                        random.uniform(-30*intensity, 30*intensity)
+                        random.uniform(-60*intensity, 60*intensity),  # 增强2.4倍
+                        random.uniform(-50*intensity, 50*intensity),  # 增强2.5倍
+                        random.uniform(-70*intensity, 70*intensity)   # 增强2.3倍
                     ])
 
                     for c in range(3):
                         patch = result[patch_y:patch_y+patch_h, patch_x:patch_x+patch_w, c]
-                        bg_mask = patch > 180  # 背景区域
+                        bg_mask = patch > 140  # 降低阈值：180→140，包含更多背景区域
                         patch[bg_mask] += mask[bg_mask] * local_color_shift[c]
                 else:
-                    # 灰度图的局部亮度变化
-                    brightness_shift = random.uniform(-15*intensity, 15*intensity)
+                    # 灰度图的局部亮度变化 - 增强效果
+                    brightness_shift = random.uniform(-45*intensity, 45*intensity)  # 增强3倍
                     patch = result[patch_y:patch_y+patch_h, patch_x:patch_x+patch_w]
-                    bg_mask = patch > 180
+                    bg_mask = patch > 140  # 降低阈值
                     patch[bg_mask] += mask[bg_mask] * brightness_shift
 
         elif variation_type == 'gradient':
-            # 渐变变化 - 模拟扫描仪光源不均
+            # 渐变变化 - 模拟扫描仪光源不均 (增强效果)
             direction = random.choice(['horizontal', 'vertical', 'diagonal'])
 
             if direction == 'horizontal':
-                gradient = np.linspace(-20*intensity, 20*intensity, w)
+                gradient = np.linspace(-50*intensity, 50*intensity, w)  # 增强2.5倍
                 gradient_map = np.tile(gradient, (h, 1))
             elif direction == 'vertical':
-                gradient = np.linspace(-20*intensity, 20*intensity, h)
+                gradient = np.linspace(-50*intensity, 50*intensity, h)  # 增强2.5倍
                 gradient_map = np.tile(gradient.reshape(-1, 1), (1, w))
             else:  # diagonal
-                x_grad = np.linspace(-15*intensity, 15*intensity, w)
-                y_grad = np.linspace(-15*intensity, 15*intensity, h)
+                x_grad = np.linspace(-40*intensity, 40*intensity, w)  # 增强2.7倍
+                y_grad = np.linspace(-40*intensity, 40*intensity, h)  # 增强2.7倍
                 gradient_map = np.add.outer(y_grad, x_grad) / 2
 
             if len(result.shape) == 3:
@@ -953,13 +953,13 @@ class BlurGenerator:
                 primary_channel = random.randint(0, 2)
                 for c in range(3):
                     channel = result[:, :, c]
-                    bg_mask = channel > 180
+                    bg_mask = channel > 140  # 降低阈值：180→140
                     if c == primary_channel:
                         channel[bg_mask] += gradient_map[bg_mask]
                     else:
-                        channel[bg_mask] += gradient_map[bg_mask] * 0.3
+                        channel[bg_mask] += gradient_map[bg_mask] * 0.5  # 增强次要通道影响
             else:
-                bg_mask = result > 180
+                bg_mask = result > 140  # 降低阈值
                 result[bg_mask] += gradient_map[bg_mask]
 
         # 确保值在有效范围内

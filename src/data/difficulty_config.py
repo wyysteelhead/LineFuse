@@ -26,7 +26,7 @@ DIFFICULTY_CONFIG = {
             'noise_intensity': (0.002, 0.008)  # 进一步降低 0.005-0.015 → 0.002-0.008
         },
         'background_variation': {
-            'intensity': (0.05, 0.12)  # 降低 0.1-0.2 → 0.05-0.12
+            'intensity': (0.1, 0.2)
         },
 
         # 额外效果参数范围
@@ -38,7 +38,7 @@ DIFFICULTY_CONFIG = {
             'kernel_size_range': ((3, 5), (3, 7))  # 修复：增加kernel范围，确保有模糊效果
         },
         'compression': {
-            'quality_range': ((50, 80), (40, 70))
+            'quality_range': ((25, 40), (20, 35))
         },
         'lowres': {
             'downscale_factor_range': ((0, 1), (1, 2))
@@ -89,7 +89,7 @@ DIFFICULTY_CONFIG = {
             'noise_intensity': (0.008, 0.025)  # 提高噪点 0.003-0.012 → 0.008-0.025
         },
         'background_variation': {
-            'intensity': (0.12, 0.22)  # 提高背景变化 0.06-0.12 → 0.12-0.22
+            'intensity': (0.4, 0.6)  # 提高背景变化 0.06-0.12 → 0.12-0.22
         },
 
         'gaussian_blur': {
@@ -100,7 +100,7 @@ DIFFICULTY_CONFIG = {
             'kernel_size_range': ((5, 7), (5, 9))  # 修复：中等难度增加模糊
         },
         'compression': {
-            'quality_range': ((40, 65), (25, 50))  # 降低质量增加压缩伪影
+            'quality_range': ((10, 20), (5, 15))  # 降低质量增加压缩伪影
         },
         'lowres': {
             'downscale_factor_range': ((1, 2), (1, 3))  # 增加下采样确保模糊
@@ -151,7 +151,7 @@ DIFFICULTY_CONFIG = {
             'noise_intensity': (0.02, 0.05)  # 提高噪点 0.008-0.025 → 0.02-0.05
         },
         'background_variation': {
-            'intensity': (0.18, 0.35)  # 提高背景变化 0.12-0.22 → 0.18-0.35
+            'intensity': (0.7, 0.9)  # 提高背景变化 0.12-0.22 → 0.18-0.35
         },
 
         'gaussian_blur': {
@@ -162,7 +162,7 @@ DIFFICULTY_CONFIG = {
             'kernel_size_range': ((7, 11), (9, 15))  # 修复：困难难度最大模糊
         },
         'compression': {
-            'quality_range': ((25, 55), (15, 40))  # 更低质量确保明显压缩伪影
+            'quality_range': ((5, 10), (2, 5))  # 更低质量确保明显压缩伪影
         },
         'lowres': {
             'downscale_factor_range': ((2, 4), (3, 5))  # 更大下采样因子确保更模糊
