@@ -145,7 +145,7 @@ DIFFICULTY_CONFIG = {
         },
         'line_discontinuity': {
             'gap_density': (0.12, 0.15),  # 高虚线：12-15%覆盖率（仍然保守）
-            'gap_size_range': ((1, 2), (2, 2))  # 小间隙：1-2像素
+            'gap_size_range': ((1, 2), (1, 2))  # 小间隙：1-2像素
         },
         'print_noise': {
             'noise_intensity': (0.02, 0.05)  # 提高噪点 0.008-0.025 → 0.02-0.05

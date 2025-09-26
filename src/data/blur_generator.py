@@ -678,32 +678,65 @@ class BlurGenerator:
             effect_type = random.choice(['thinning', 'fading'])
 
             if effect_type == 'thinning' and thinning_strength > 0:
-                # 轻微的线条变细
-                kernel_size = max(1, min(3, int(1 + 2 * thinning_strength)))  # 1-3像素
-                if kernel_size % 2 == 0:
-                    kernel_size += 1
-                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
-                thinned_region = cv2.erode(region, kernel, iterations=1)  # 只1次迭代
+                # 精确的线条变细 - 只影响线条像素
+                processed_region = region.copy()
 
-                # 轻微混合，保持大部分原始线条
-                alpha = 0.3 + 0.3 * thinning_strength  # 最多0.6的混合比例
-                processed_region = cv2.addWeighted(region, 1-alpha, thinned_region, alpha, 0)
-
-            elif effect_type == 'fading' and fading_strength > 0:
-                # 轻微的线条变淡
-                processed_region = region.copy().astype(np.float32)
-
-                # 找到线条区域
+                # 找到真正的光谱线条（很暗的像素）
                 if len(region.shape) == 3:
                     gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
                 else:
                     gray = region.copy()
 
-                line_mask = gray < 200
+                # 严格的线条检测：只处理非常暗的像素（光谱线条）
+                line_mask = gray < 100  # 降低阈值，只检测真正的线条
 
                 if np.any(line_mask):
-                    # 轻微的变淡效果
-                    fade_amount = int(20 + 30 * fading_strength)  # 20-50的轻微变淡
+                    # 创建变细效果 - 只在线条区域应用
+                    kernel_size = max(1, min(3, int(1 + 2 * thinning_strength)))
+                    if kernel_size % 2 == 0:
+                        kernel_size += 1
+                    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+
+                    # 只对线条区域应用腐蚀
+                    eroded_mask = cv2.erode(line_mask.astype(np.uint8), kernel, iterations=1)
+
+                    # 创建变细效果：移除一些线条像素
+                    thin_strength = 0.3 + 0.4 * thinning_strength  # 0.3-0.7
+                    removal_mask = line_mask & (~eroded_mask.astype(bool))  # 被腐蚀掉的像素
+
+                    # 随机移除部分边缘像素创造变细效果
+                    removal_coords = np.where(removal_mask)
+                    if len(removal_coords[0]) > 0:
+                        num_remove = int(len(removal_coords[0]) * thin_strength)
+                        if num_remove > 0:
+                            indices = random.sample(range(len(removal_coords[0])),
+                                                  min(num_remove, len(removal_coords[0])))
+                            for idx in indices:
+                                y, x = removal_coords[0][idx], removal_coords[1][idx]
+                                # 变成背景色
+                                if len(processed_region.shape) == 3:
+                                    processed_region[y, x] = (255, 255, 255)
+                                else:
+                                    processed_region[y, x] = 255
+                else:
+                    processed_region = region
+
+            elif effect_type == 'fading' and fading_strength > 0:
+                # 精确的线条变淡 - 只影响线条像素
+                processed_region = region.copy().astype(np.float32)
+
+                # 找到真正的光谱线条（很暗的像素）
+                if len(region.shape) == 3:
+                    gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
+                else:
+                    gray = region.copy()
+
+                # 严格的线条检测：只处理非常暗的像素（光谱线条）
+                line_mask = gray < 100  # 降低阈值，只检测真正的线条
+
+                if np.any(line_mask):
+                    # 精确的变淡效果 - 让黑色线条变成灰色
+                    fade_amount = int(30 + 50 * fading_strength)  # 30-80的变淡
 
                     if len(processed_region.shape) == 3:
                         for c in range(3):
