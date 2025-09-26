@@ -588,7 +588,9 @@ class BlurGenerator:
                                gap_density: float = 0.4,
                                gap_size_range: tuple = (1, 2)) -> np.ndarray:
         """
-        创建密集小噪点感间隙效果 - 不是大断口，而是像线条被噪点干扰一样
+        创建密集虚线效果 - 大量细小间隙，像虚线图案
+        gap_density: 控制虚线的密集程度（范围大但间隙小）
+        gap_size_range: 控制单个间隙大小（始终很小，1-3像素）
         """
         result = image.copy()
         h, w = result.shape[:2]
@@ -604,53 +606,49 @@ class BlurGenerator:
         line_coords = np.where(line_mask)
 
         if len(line_coords[0]) > 0:
-            # 大幅增加噪点密度 - 创建密集小间隙噪点感
-            num_noise_points = int(len(line_coords[0]) * gap_density * 0.1)  # 更多噪点
+            # 密集虚线策略：大范围覆盖，但每个间隙都很小
+            # gap_density现在控制覆盖范围，而不是间隙大小
+            coverage_ratio = gap_density  # 0.1-0.4的范围覆盖
+            num_dash_gaps = int(len(line_coords[0]) * coverage_ratio)
 
-            if num_noise_points > 0:
-                # 随机选择线条像素位置创建极小噪点
+            if num_dash_gaps > 0:
+                # 随机选择线条像素位置创建小间隙
                 indices = random.sample(range(len(line_coords[0])),
-                                      min(num_noise_points, len(line_coords[0])))
+                                      min(num_dash_gaps, len(line_coords[0])))
 
                 for idx in indices:
-                    noise_y, noise_x = line_coords[0][idx], line_coords[1][idx]
+                    gap_y, gap_x = line_coords[0][idx], line_coords[1][idx]
 
-                    # 创建极小的噪点间隙 - 像素级的小洞
-                    noise_size = random.randint(gap_size_range[0], gap_size_range[1])
+                    # 强制小间隙 - 虚线效果
+                    gap_size = min(3, random.randint(gap_size_range[0], gap_size_range[1]))  # 最大3像素
 
-                    # 使用方形噪点替代圆形，更像噪点干扰
-                    y_start = max(0, noise_y - noise_size//2)
-                    y_end = min(h, noise_y + noise_size//2 + 1)
-                    x_start = max(0, noise_x - noise_size//2)
-                    x_end = min(w, noise_x + noise_size//2 + 1)
+                    # 创建小方形间隙
+                    y_start = max(0, gap_y - gap_size//2)
+                    y_end = min(h, gap_y + gap_size//2 + 1)
+                    x_start = max(0, gap_x - gap_size//2)
+                    x_end = min(w, gap_x + gap_size//2 + 1)
 
-                    # 随机化噪点强度 - 有些完全白色，有些半透明
-                    if random.random() < 0.7:  # 70%完全白色噪点
-                        noise_color = 255 if len(result.shape) == 2 else (255, 255, 255)
-                    else:  # 30%半透明噪点
-                        noise_color = 200 if len(result.shape) == 2 else (200, 200, 200)
-
+                    # 使用背景色填充间隙（制造虚线效果）
                     if len(result.shape) == 3:
-                        result[y_start:y_end, x_start:x_end] = noise_color
+                        result[y_start:y_end, x_start:x_end] = (255, 255, 255)  # 白色间隙
                     else:
-                        result[y_start:y_end, x_start:x_end] = noise_color
+                        result[y_start:y_end, x_start:x_end] = 255  # 白色间隙
 
-            # 添加额外的随机噪点模拟扫描干扰
-            extra_noise_points = int(h * w * gap_density * 0.0001)  # 稀疏的背景噪点
-            for _ in range(extra_noise_points):
-                rand_y = random.randint(0, h-1)
-                rand_x = random.randint(0, w-1)
+            # 添加线条边缘的微小扰动，增强虚线感
+            edge_disturbance = int(len(line_coords[0]) * gap_density * 0.1)
+            if edge_disturbance > 0:
+                edge_indices = random.sample(range(len(line_coords[0])),
+                                           min(edge_disturbance, len(line_coords[0])))
 
-                # 只在线条附近添加噪点
-                if gray[rand_y, rand_x] < 220:  # 在灰色/线条区域附近
-                    noise_size = random.randint(1, 2)  # 超小噪点
-                    if len(result.shape) == 3:
-                        result[rand_y:rand_y+noise_size, rand_x:rand_x+noise_size] = (240, 240, 240)
-                    else:
-                        result[rand_y:rand_y+noise_size, rand_x:rand_x+noise_size] = 240
+                for idx in edge_indices:
+                    disturb_y, disturb_x = line_coords[0][idx], line_coords[1][idx]
 
-        # 轻微的高斯模糊软化噪点边缘，让效果更自然
-        result = cv2.GaussianBlur(result, (3, 3), 0.5)
+                    # 单像素扰动 - 让线条边缘不那么完美
+                    if random.random() < 0.5:  # 50%概率
+                        if len(result.shape) == 3:
+                            result[disturb_y, disturb_x] = (220, 220, 220)  # 浅灰扰动
+                        else:
+                            result[disturb_y, disturb_x] = 220  # 浅灰扰动
 
         return result
 
