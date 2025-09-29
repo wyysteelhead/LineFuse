@@ -1022,27 +1022,42 @@ class BlurGenerator:
         if num_effects is None:
             num_effects = get_random_value_in_range(config['additional_effects_count'], is_int=True)
 
-        # 按照优化顺序定义额外效果：先线条相关，再遮挡，最后压缩类
-        effect_categories = {
-            'line_related': ['gaussian', 'motion', 'spectral_degradation'],  # 先处理线条本身
-            'occlusion': ['text', 'lines', 'scan', 'localblur', 'scan_lines'],  # 再添加遮挡物
-            'final_processing': ['compression', 'lowres', 'print_scan']  # 最后做整体压缩/降质
-        }
+        # 定义互斥的破坏性效果组（只能选其中1个）
+        destructive_effects = ['lowres', 'gaussian', 'compression']
 
-        # 确保按照类别顺序选择效果
+        # 其他效果（可以多选）
+        other_effects = ['motion', 'spectral_degradation', 'text', 'lines', 'scan', 'localblur', 'scan_lines', 'print_scan']
+
         selected_effects = []
-        remaining_effects = num_effects
 
-        # 按顺序从每个类别选择效果
-        for category, effects in effect_categories.items():
-            if remaining_effects <= 0:
-                break
-            # 从当前类别随机选择1个效果（如果还需要效果的话）
-            category_count = min(1, remaining_effects, len(effects))
-            if category_count > 0:
-                category_effects = random.sample(effects, category_count)
-                selected_effects.extend(category_effects)
-                remaining_effects -= category_count
+        # 第一步：从破坏性效果中最多选1个（50%概率选择）
+        if num_effects > 0 and random.random() < 0.5:
+            destructive_effect = random.choice(destructive_effects)
+            selected_effects.append(destructive_effect)
+            num_effects -= 1
+
+        # 第二步：从其他效果中选择剩余数量
+        if num_effects > 0:
+            available_other = other_effects.copy()
+            other_count = min(num_effects, len(available_other))
+            other_selected = random.sample(available_other, other_count)
+            selected_effects.extend(other_selected)
+
+        # 重新排序：确保破坏性效果放在最后
+        final_effects = []
+        destructive_in_selection = None
+
+        for effect in selected_effects:
+            if effect in destructive_effects:
+                destructive_in_selection = effect
+            else:
+                final_effects.append(effect)
+
+        # 破坏性效果放到最后
+        if destructive_in_selection:
+            final_effects.append(destructive_in_selection)
+
+        selected_effects = final_effects
 
         result = image.copy()
         applied_effects = []
@@ -1051,16 +1066,24 @@ class BlurGenerator:
         print(f"🔧 ADDITIONAL BLUR: {self.difficulty} difficulty, applying {len(selected_effects)} effects in order: {selected_effects}")
         print(f"   Config additional_effects_count: {config['additional_effects_count']}")
         print(f"   Requested num_effects: {num_effects}, Selected: {len(selected_effects)}")
+        if destructive_in_selection:
+            print(f"   ⚠️  Destructive effect '{destructive_in_selection}' will be applied LAST")
 
-        for effect in selected_effects:
+        for i, effect in enumerate(selected_effects, 1):
+            print(f"   [{i}/{len(selected_effects)}] Applying: {effect}")
             try:
                 if effect == 'gaussian':
-                    # 使用配置化的高斯模糊参数
+                    # 使用降低强度的高斯模糊参数（减少30-40%）
                     gaussian_config = config['gaussian_blur']
-                    kernel_range = get_random_range_in_ranges(gaussian_config['kernel_size_range'], is_int=True)
-                    sigma_range = get_random_range_in_ranges(gaussian_config['sigma_range'])
-                    effect_details.append(f"gaussian(kernel={kernel_range}, sigma={sigma_range})")
-                    result = self.gaussian_blur(result, kernel_size_range=kernel_range, sigma_range=sigma_range)
+                    original_kernel = get_random_range_in_ranges(gaussian_config['kernel_size_range'], is_int=True)
+                    original_sigma = get_random_range_in_ranges(gaussian_config['sigma_range'])
+
+                    # 降低参数强度
+                    reduced_kernel = (max(3, int(original_kernel[0] * 0.7)), max(5, int(original_kernel[1] * 0.7)))
+                    reduced_sigma = (original_sigma[0] * 0.6, original_sigma[1] * 0.6)
+
+                    effect_details.append(f"gaussian(kernel={reduced_kernel}, sigma={reduced_sigma})")
+                    result = self.gaussian_blur(result, kernel_size_range=reduced_kernel, sigma_range=reduced_sigma)
                 elif effect == 'motion':
                     # 使用配置化的运动模糊参数
                     motion_config = config['motion_blur']
@@ -1077,11 +1100,15 @@ class BlurGenerator:
                     effect_details.append("print_scan_simulation")
                     result = self.print_scan_simulation(result, enable_geometric_distortion=False)
                 elif effect == 'lowres':
-                    # 使用配置化的低分辨率参数
+                    # 使用降低强度的低分辨率参数（减少下采样倍数）
                     lowres_config = config['lowres']
-                    factor_range = get_random_range_in_ranges(lowres_config['downscale_factor_range'], is_int=True)
-                    effect_details.append(f"lowres(factor={factor_range})")
-                    result = self.low_resolution_upscale(result, downscale_factor_range=factor_range)
+                    original_factor = get_random_range_in_ranges(lowres_config['downscale_factor_range'], is_int=True)
+
+                    # 降低下采样倍数（最大不超过4倍）
+                    reduced_factor = (max(2, int(original_factor[0] * 0.7)), min(4, int(original_factor[1] * 0.7)))
+
+                    effect_details.append(f"lowres(factor={reduced_factor})")
+                    result = self.low_resolution_upscale(result, downscale_factor_range=reduced_factor)
                 elif effect == 'text':
                     # 使用配置化的文本干扰参数 (固定范围)
                     effect_details.append("text_interference(1-3)")

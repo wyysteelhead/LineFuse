@@ -24,7 +24,7 @@ DIFFICULTY_CONFIG = {
             'num_regions': (0, 1),            # Easy: 0-1个区域，保持大部分正常
         },
         'line_discontinuity': {
-            'gap_density': (0.05, 0.08),  # 温和虚线：5-8%覆盖率
+            'gap_density': (0.04, 0.06),  # 温和虚线：5-8%覆盖率
             'gap_size_range': ((1, 1), (1, 2))  # 真正小间隙：1-2像素
         },
         'print_noise': {
@@ -87,7 +87,7 @@ DIFFICULTY_CONFIG = {
             'num_regions': (2, 3),            # 提高下限：1→2
         },
         'line_discontinuity': {
-            'gap_density': (0.12, 0.18),  # 提高下限：0.08→0.12
+            'gap_density': (0.06, 0.12),  # 提高下限：0.08→0.12
             'gap_size_range': ((1, 1), (1, 2))  # 大幅缩小：真正的小间隙
         },
         'print_noise': {
@@ -149,8 +149,8 @@ DIFFICULTY_CONFIG = {
             'num_regions': (2, 4),            # 提高下限：1→2
         },
         'line_discontinuity': {
-            'gap_density': (0.18, 0.25),  # 提高下限：0.12→0.18
-            'gap_size_range': ((1, 2), (2, 3))  # 大幅缩小：小间隙但可见
+            'gap_density': (0.12, 0.18),  # 提高下限：0.08→0.12
+            'gap_size_range': ((1, 1), (1, 2))  # 大幅缩小：真正的小间隙
         },
         'print_noise': {
             'noise_intensity': (0.03, 0.06)  # 提高下限：0.02→0.03
