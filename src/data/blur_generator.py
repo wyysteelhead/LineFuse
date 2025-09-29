@@ -1022,24 +1022,35 @@ class BlurGenerator:
         if num_effects is None:
             num_effects = get_random_value_in_range(config['additional_effects_count'], is_int=True)
 
-        # 可选的额外模糊效果（不包括基础必加效果）
-        additional_effects = [
-            'gaussian', 'motion', 'compression', 'scan', 'lowres',
-            'text', 'lines', 'print_scan', 'localblur',  # 暂时移除threshold
-            'scan_lines', 'spectral_degradation'
-        ]
+        # 按照优化顺序定义额外效果：先线条相关，再遮挡，最后压缩类
+        effect_categories = {
+            'line_related': ['gaussian', 'motion', 'spectral_degradation'],  # 先处理线条本身
+            'occlusion': ['text', 'lines', 'scan', 'localblur', 'scan_lines'],  # 再添加遮挡物
+            'final_processing': ['compression', 'lowres', 'print_scan']  # 最后做整体压缩/降质
+        }
 
-        # 随机选择effects
-        selected_effects = random.sample(additional_effects,
-                                       min(num_effects, len(additional_effects)))
+        # 确保按照类别顺序选择效果
+        selected_effects = []
+        remaining_effects = num_effects
+
+        # 按顺序从每个类别选择效果
+        for category, effects in effect_categories.items():
+            if remaining_effects <= 0:
+                break
+            # 从当前类别随机选择1个效果（如果还需要效果的话）
+            category_count = min(1, remaining_effects, len(effects))
+            if category_count > 0:
+                category_effects = random.sample(effects, category_count)
+                selected_effects.extend(category_effects)
+                remaining_effects -= category_count
 
         result = image.copy()
         applied_effects = []
         effect_details = []
 
-        print(f"🔧 ADDITIONAL BLUR: {self.difficulty} difficulty, applying {num_effects} effects: {selected_effects}")
+        print(f"🔧 ADDITIONAL BLUR: {self.difficulty} difficulty, applying {len(selected_effects)} effects in order: {selected_effects}")
         print(f"   Config additional_effects_count: {config['additional_effects_count']}")
-        print(f"   Generated num_effects: {num_effects}")
+        print(f"   Requested num_effects: {num_effects}, Selected: {len(selected_effects)}")
 
         for effect in selected_effects:
             try:
