@@ -88,7 +88,7 @@ DIFFICULTY_CONFIG = {
         },
         'line_discontinuity': {
             'gap_density': (0.12, 0.18),  # 提高下限：0.08→0.12
-            'gap_size_range': ((2, 3), (2, 4))  # 提高下限：(1,2)→(2,3)
+            'gap_size_range': ((1, 1), (1, 2))  # 大幅缩小：真正的小间隙
         },
         'print_noise': {
             'noise_intensity': (0.015, 0.035)  # 提高下限：0.008→0.015
@@ -150,7 +150,7 @@ DIFFICULTY_CONFIG = {
         },
         'line_discontinuity': {
             'gap_density': (0.18, 0.25),  # 提高下限：0.12→0.18
-            'gap_size_range': ((2, 4), (3, 5))  # 提高下限：(1,2)→(2,4)
+            'gap_size_range': ((1, 2), (2, 3))  # 大幅缩小：小间隙但可见
         },
         'print_noise': {
             'noise_intensity': (0.03, 0.06)  # 提高下限：0.02→0.03
