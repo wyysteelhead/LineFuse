@@ -644,114 +644,62 @@ class BlurGenerator:
 
         return result
 
-    def regional_line_variations(self, image: np.ndarray,
-                                   thinning_strength: float = 0.3,
-                                   fading_strength: float = 0.3,
-                                   num_regions: int = 2) -> np.ndarray:
+    def generate_chart_with_line_variations(self, csv_data_path: str,
+                                          output_path: str,
+                                          thinning_strength: float = 0.3,
+                                          fading_strength: float = 0.3,
+                                          dash_density: float = 0.0) -> np.ndarray:
         """
-        Regional line thinning and fading effects
-        区域性线条变细和变淡效果 - 只影响少数区域，保持主体线条正常
+        Generate chart with line variations using matplotlib drawing (not image processing)
+        通过matplotlib绘制时的参数控制实现线条变化，避免图像处理伪影
 
         Args:
+            csv_data_path: 原始CSV数据文件路径
+            output_path: 输出图像路径
             thinning_strength: 线条变细强度 (0-1)
             fading_strength: 线条变淡强度 (0-1)
-            num_regions: 影响的区域数量
+            dash_density: 虚线密度 (0-1)
+
+        Returns:
+            生成的图像数组
         """
-        result = image.copy()
-        h, w = result.shape[:2]
+        from .clean_chart_generator import CleanChartGenerator
 
-        # 如果区域数量为0，直接返回原图
-        if num_regions == 0:
-            return result
+        # 创建带有线条变化功能的图表生成器
+        generator = CleanChartGenerator(
+            enable_line_variations=True,  # 启用线条变化
+            enable_style_diversity=False,  # demo中禁用样式多样化
+            style_diversity_level=0.0      # 确保一致性
+        )
 
-        for i in range(num_regions):
-            # 创建较小的随机区域 - 只影响图像的一小部分
-            region_w = random.randint(60, 150)  # 较小的区域
-            region_h = random.randint(60, 150)
-            region_x = random.randint(0, max(1, w - region_w))
-            region_y = random.randint(0, max(1, h - region_h))
+        # 加载CSV数据
+        csv_data = generator.load_csv_data(csv_data_path)
+        data = csv_data['data']
+        columns = csv_data['columns']
+        x_data = data[:, 0]  # 第一列为x轴数据
+        y_data = data[:, 1]  # 第二列为y轴数据
 
-            # 提取区域
-            region = result[region_y:region_y+region_h, region_x:region_x+region_w].copy()
+        # 构建线条变化参数
+        line_variation_params = {
+            'thinning_strength': thinning_strength,
+            'fading_strength': fading_strength,
+            'dash_density': dash_density
+        }
 
-            # 随机选择应用变细或变淡（不是都应用）
-            effect_type = random.choice(['thinning', 'fading'])
+        # 使用matplotlib绘制时就应用线条变化
+        generator.generate_clean_chart(
+            x_data, y_data,
+            output_path=output_path,
+            line_variation_params=line_variation_params
+        )
 
-            if effect_type == 'thinning' and thinning_strength > 0:
-                # 精确的线条变细 - 只影响线条像素
-                processed_region = region.copy()
+        # 加载生成的图像并返回
+        import cv2
+        result_image = cv2.imread(output_path)
+        if result_image is None:
+            raise ValueError(f"Failed to load generated image: {output_path}")
 
-                # 找到真正的光谱线条（很暗的像素）
-                if len(region.shape) == 3:
-                    gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
-                else:
-                    gray = region.copy()
-
-                # 严格的线条检测：只处理非常暗的像素（光谱线条）
-                line_mask = gray < 100  # 降低阈值，只检测真正的线条
-
-                if np.any(line_mask):
-                    # 创建变细效果 - 只在线条区域应用
-                    kernel_size = max(1, min(3, int(1 + 2 * thinning_strength)))
-                    if kernel_size % 2 == 0:
-                        kernel_size += 1
-                    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
-
-                    # 只对线条区域应用腐蚀
-                    eroded_mask = cv2.erode(line_mask.astype(np.uint8), kernel, iterations=1)
-
-                    # 创建变细效果：移除一些线条像素
-                    thin_strength = 0.3 + 0.4 * thinning_strength  # 0.3-0.7
-                    removal_mask = line_mask & (~eroded_mask.astype(bool))  # 被腐蚀掉的像素
-
-                    # 随机移除部分边缘像素创造变细效果
-                    removal_coords = np.where(removal_mask)
-                    if len(removal_coords[0]) > 0:
-                        num_remove = int(len(removal_coords[0]) * thin_strength)
-                        if num_remove > 0:
-                            indices = random.sample(range(len(removal_coords[0])),
-                                                  min(num_remove, len(removal_coords[0])))
-                            for idx in indices:
-                                y, x = removal_coords[0][idx], removal_coords[1][idx]
-                                # 变成背景色
-                                if len(processed_region.shape) == 3:
-                                    processed_region[y, x] = (255, 255, 255)
-                                else:
-                                    processed_region[y, x] = 255
-                else:
-                    processed_region = region
-
-            elif effect_type == 'fading' and fading_strength > 0:
-                # 精确的线条变淡 - 只影响线条像素
-                processed_region = region.copy().astype(np.float32)
-
-                # 找到真正的光谱线条（很暗的像素）
-                if len(region.shape) == 3:
-                    gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
-                else:
-                    gray = region.copy()
-
-                # 严格的线条检测：只处理非常暗的像素（光谱线条）
-                line_mask = gray < 100  # 降低阈值，只检测真正的线条
-
-                if np.any(line_mask):
-                    # 精确的变淡效果 - 让黑色线条变成灰色
-                    fade_amount = int(30 + 50 * fading_strength)  # 30-80的变淡
-
-                    if len(processed_region.shape) == 3:
-                        for c in range(3):
-                            processed_region[:, :, c][line_mask] += fade_amount
-                    else:
-                        processed_region[line_mask] += fade_amount
-
-                processed_region = np.clip(processed_region, 0, 255).astype(np.uint8)
-            else:
-                processed_region = region
-
-            # 将处理后的区域放回原图
-            result[region_y:region_y+region_h, region_x:region_x+region_w] = processed_region
-
-        return result
+        return result_image
 
     def apply_single_blur_effect(self, image: np.ndarray, effect_type: str,
                                intensity: float = 0.5) -> np.ndarray:
@@ -1012,19 +960,15 @@ class BlurGenerator:
             applied_effects.append(effect_log)
             result = self.background_color_variation(result, intensity=bg_intensity)
 
-            # 2. 线条变细和变淡 - 区域性轻微变化
+            # 2. 线条变化效果 - 保存参数以便在绘制时应用
             line_config = config['line_thinning_fading']
             thinning_strength = get_random_value_in_range(line_config['thinning_strength'])
             fading_strength = get_random_value_in_range(line_config['fading_strength'])
             num_regions = get_random_value_in_range(line_config['num_regions'], is_int=True)
             effect_log = f"line_variations(thin={thinning_strength:.3f}, fade={fading_strength:.3f}, regions={num_regions})"
             applied_effects.append(effect_log)
-            result = self.regional_line_variations(result,
-                                                 thinning_strength=thinning_strength,
-                                                 fading_strength=fading_strength,
-                                                 num_regions=num_regions)
 
-            # 3. 线段断断续续 - 使用配置化参数
+            # 3. 线段断断续续 - 使用配置化参数，整合到线条变化中
             discontinuity_config = config['line_discontinuity']
             gap_density = get_random_value_in_range(discontinuity_config['gap_density'])
             gap_size_range = discontinuity_config['gap_size_range'][0]  # 使用第一个范围
@@ -1035,9 +979,16 @@ class BlurGenerator:
 
             effect_log = f"line_discontinuity(density={gap_density:.3f}, gap_range={gap_size_range})"
             applied_effects.append(effect_log)
-            result = self.line_discontinuity_blur(result,
-                                                gap_density=gap_density,
-                                                gap_size_range=gap_size_range)
+
+            # 存储完整的线条变化参数，包含虚线效果
+            self.line_variation_params = {
+                'thinning_strength': thinning_strength,
+                'fading_strength': fading_strength,
+                'dash_density': gap_density  # 使用gap_density作为虚线密度
+            }
+
+            # 注意：现在不再调用图像处理方法，线条变化将在绘制时应用
+            # result = self.line_discontinuity_blur(...) # 注释掉原来的图像处理方法
 
             # 4. 打印噪点效果 - 使用配置化参数
             noise_intensity = get_random_value_in_range(config['print_noise']['noise_intensity'])

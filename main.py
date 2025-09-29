@@ -13,6 +13,7 @@ sys.path.append(str(Path(__file__).parent / 'src'))
 import numpy as np
 from data.clean_chart_generator import CleanChartGenerator
 from data.dataset_builder import DatasetBuilder
+from data.blur_generator import BlurGenerator
 
 def create_comprehensive_blur_demo():
     """
@@ -23,8 +24,6 @@ def create_comprehensive_blur_demo():
 
     # 检查依赖
     try:
-        from data.blur_generator import BlurGenerator
-        from data.clean_chart_generator import CleanChartGenerator
         from data.difficulty_config import get_difficulty_config, get_random_value_in_range
         import cv2
     except ImportError as e:
@@ -120,7 +119,7 @@ def create_comprehensive_blur_demo():
                         effect_log.append(f"background_variation(intensity={intensity:.3f})")
 
                     elif effect_name == 'line_thinning_fading':
-                        # 线条变细和变淡效果
+                        # 线条变细和变淡效果 - 使用新的绘制时变化方法
                         line_config = config['line_thinning_fading']
                         if intensity_type == 'min':
                             thin_strength = line_config['thinning_strength'][0]
@@ -128,9 +127,17 @@ def create_comprehensive_blur_demo():
                         else:
                             thin_strength = line_config['thinning_strength'][1]
                             fade_strength = line_config['fading_strength'][1]
-                        result_image = blur_generator.simple_line_thinning_and_fading(
-                            result_image, thinning_strength=thin_strength, fading_strength=fade_strength)
-                        effect_log.append(f"line_thinning_fading(thin={thin_strength:.3f}, fade={fade_strength:.3f})")
+
+                        # 使用新的matplotlib绘制时线条变化方法
+                        blur_generator.generate_chart_with_line_variations(
+                            csv_data_path=csv_file,  # 使用演示CSV文件
+                            output_path=output_path,
+                            thinning_strength=thin_strength,
+                            fading_strength=fade_strength,
+                            dash_density=0.0  # demo中不加虚线效果
+                        )
+                        # 直接跳过图像保存，因为已经通过matplotlib保存了
+                        continue  # 跳过后续的cv2.imwrite，直接进入下一个效果
 
                     elif effect_name == 'line_discontinuity':
                         # 虚线效果
@@ -313,7 +320,7 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
 
     # DEPRECATED: 使用新的配置系统 src/data/difficulty_config.py
     # 这个旧配置保留仅用于向后兼容，将来会被移除
-    from src.data.difficulty_config import get_difficulty_config
+    from src.data.difficulty_config import get_difficulty_config, get_global_config
 
     # 为向后兼容，构建描述映射
     difficulty_descriptions = {
@@ -407,13 +414,6 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
 
     # 检查是否可以生成模糊效果
     can_generate_blur = True
-    try:
-        from data.blur_generator import BlurGenerator
-    except ImportError as e:
-        print(f"⚠️  模糊效果生成需要依赖库: {e}")
-        print("请运行: pip install opencv-python albumentations")
-        print("将仅生成清晰图...")
-        can_generate_blur = False
 
     total_blur_count = 0
     total_clean_count = 0
@@ -442,12 +442,24 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
         if can_generate_blur:
             blur_generator = BlurGenerator(difficulty=difficulty)
 
+        # 获取全局配置
+        global_config = get_global_config()
+
         # 为每个CSV文件生成统一基础图，然后配对生成clean/blur
         for csv_file in csv_files:
-            # 创建该难度的基础图生成器，包含样式多样化
-            difficulty_generator = CleanChartGenerator(
+            # 创建clean图生成器 - 使用统一的line_width
+            clean_generator = CleanChartGenerator(
                 figure_size=(image_size, image_size),
-                line_width=config['line_width'],
+                line_width=global_config['clean_line_width'],  # 统一的粗线条
+                enable_style_diversity=enable_style_diversity,
+                style_diversity_level=style_diversity_level,
+                target_style=target_style
+            )
+
+            # 创建blur图生成器 - 使用难度相关的line_width
+            blur_base_generator = CleanChartGenerator(
+                figure_size=(image_size, image_size),
+                line_width=config['line_width'],  # 难度相关的线条粗细
                 enable_style_diversity=enable_style_diversity,
                 style_diversity_level=style_diversity_level,
                 target_style=target_style
@@ -461,25 +473,16 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
                 if pure_line_only:
                     # pure_line_only模式：clean图为纯线条，blur图有坐标
 
-                    # 1. 生成纯线条的clean图
+                    # 1. 生成纯线条的clean图 - 使用统一粗线条
                     clean_output_name = f"{csv_file.stem}_{difficulty}_clean.png"
                     clean_output_path = temp_clean_dir / clean_output_name
-                    difficulty_generator.process_csv_to_chart(csv_file, clean_output_path,
-                                                            pure_line_only=True,  # clean图纯线条
-                                                            pixel_perfect=pixel_perfect)
+                    clean_generator.process_csv_to_chart(csv_file, clean_output_path,
+                                                       pure_line_only=True,  # clean图纯线条
+                                                       pixel_perfect=pixel_perfect)
                     difficulty_clean_count += 1
 
-                    # 2. 如果需要模糊效果，生成有坐标的基础图用于模糊
+                    # 2. 如果需要模糊效果，生成有坐标的基础图用于模糊 - 使用难度相关的细线条
                     if can_generate_blur:
-                        # 生成有坐标的基础图（仅用于模糊图生成）
-                        blur_base_generator = CleanChartGenerator(
-                            figure_size=(image_size, image_size),
-                            line_width=config['line_width'],
-                            enable_style_diversity=enable_style_diversity,
-                            style_diversity_level=style_diversity_level,
-                            target_style=target_style
-                        )
-
                         blur_base_file = temp_clean_dir / f"{csv_file.stem}_{difficulty}_blur_base.png"
                         blur_base_generator.process_csv_to_chart(csv_file, blur_base_file,
                                                                pure_line_only=False,  # blur基础图有坐标
@@ -491,13 +494,49 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
                             blur_output_path = temp_blur_dir / blur_output_name
 
                             try:
-                                # 加载有坐标的基础图
-                                base_image = blur_generator.load_image(blur_base_file)
+                                # 1. 准备基础退化参数（获取线条变化参数，不处理图像）
+                                dummy_image = np.zeros((512, 512, 3), dtype=np.uint8)
+                                _, _ = blur_generator.apply_base_degradation(dummy_image)  # 虚拟调用获取参数
 
-                                # 1. 应用基础退化效果（每张都有）
-                                base_degraded, base_effects_log = blur_generator.apply_base_degradation(base_image)
+                                # 2. 使用带线条变化的绘制器直接生成模糊图
+                                if hasattr(blur_generator, 'line_variation_params'):
+                                    # 使用新的绘制时线条变化方法
 
-                                # 2. 随机添加额外效果
+                                    # 创建带线条变化的生成器
+                                    chart_generator = CleanChartGenerator(
+                                        figure_size=(image_size, image_size),
+                                        line_width=config['line_width'],
+                                        enable_style_diversity=enable_style_diversity,
+                                        style_diversity_level=style_diversity_level,
+                                        target_style=target_style,
+                                        enable_line_variations=True
+                                    )
+
+                                    # 加载CSV数据
+                                    csv_data = chart_generator.load_csv_data(csv_file)
+                                    data = csv_data['data']
+                                    columns = csv_data['columns']
+                                    x_data = data[:, 0]  # 第一列为x轴数据
+                                    y_data = data[:, 1]  # 第二列为y轴数据
+
+                                    # 生成带线条变化的图表
+                                    chart_generator.generate_clean_chart(
+                                        x_data, y_data,
+                                        output_path=str(blur_output_path),
+                                        pure_line_only=False,  # blur基础图有坐标
+                                        pixel_perfect=pixel_perfect,
+                                        line_variation_params=blur_generator.line_variation_params
+                                    )
+
+                                    # 加载生成的图像以便后续处理
+                                    base_degraded = blur_generator.load_image(blur_output_path)
+                                    base_effects_log = [f"line_variations(drawing-time)"]
+                                else:
+                                    # 回退到原来的图像处理方法
+                                    base_image = blur_generator.load_image(blur_base_file)
+                                    base_degraded, base_effects_log = blur_generator.apply_base_degradation(base_image)
+
+                                # 3. 随机添加额外效果
                                 final_result = blur_generator.apply_random_additional_blur(base_degraded)
 
                                 # 3. 记录详细的模糊效果日志
@@ -552,20 +591,20 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
                             blur_base_file.unlink()
 
                 else:
-                    # 标准模式：clean和blur使用统一基础图
+                    # 标准模式：分别生成clean和blur图
 
-                    # 生成统一基础图（有坐标）
-                    difficulty_generator.process_csv_to_chart(csv_file, base_chart_file,
-                                                            pure_line_only=False,  # 标准模式有坐标
-                                                            pixel_perfect=pixel_perfect)
-
-                    # 1. 将基础图作为该难度的清晰图 (直接复制，保持完全一致)
+                    # 1. 生成clean图（使用统一粗线条）
                     clean_output_name = f"{csv_file.stem}_{difficulty}_clean.png"
                     clean_output_path = temp_clean_dir / clean_output_name
-
-                    import shutil
-                    shutil.copy2(base_chart_file, clean_output_path)
+                    clean_generator.process_csv_to_chart(csv_file, clean_output_path,
+                                                       pure_line_only=False,  # 标准模式有坐标
+                                                       pixel_perfect=pixel_perfect)
                     difficulty_clean_count += 1
+
+                    # 2. 生成blur基础图（使用难度相关的细线条）
+                    blur_base_generator.process_csv_to_chart(csv_file, base_chart_file,
+                                                           pure_line_only=False,  # 标准模式有坐标
+                                                           pixel_perfect=pixel_perfect)
 
                     # 2. 如果可以生成模糊效果，基于同样的基础图生成模糊图
                     if can_generate_blur:

@@ -17,7 +17,8 @@ class CleanChartGenerator:
                  line_width: float = 0.8,  # 减细线条
                  enable_style_diversity: bool = True,
                  style_diversity_level: float = 1.0,
-                 target_style: Optional[str] = None):
+                 target_style: Optional[str] = None,
+                 enable_line_variations: bool = False):
         """
         Initialize CleanChartGenerator with optional style diversity
 
@@ -35,6 +36,7 @@ class CleanChartGenerator:
         self.enable_style_diversity = enable_style_diversity
         self.style_diversity_level = style_diversity_level
         self.target_style = target_style
+        self.enable_line_variations = enable_line_variations
 
         plt.rcParams['font.family'] = self.font_family
 
@@ -47,6 +49,101 @@ class CleanChartGenerator:
             except ImportError as e:
                 logging.warning(f"Style diversity not available: {e}")
                 self.enable_style_diversity = False
+
+    def _plot_line_with_variations(self, ax, x_data, y_data, base_color='black',
+                                 base_linewidth=0.8, variation_params=None):
+        """
+        Plot line with optional variations (thinning, fading, dashing)
+        Only used when enable_line_variations=True
+
+        Args:
+            variation_params: dict with keys like:
+                - thinning_strength: 0.0-1.0
+                - fading_strength: 0.0-1.0
+                - dash_density: 0.0-1.0
+        """
+        if not self.enable_line_variations or variation_params is None:
+            # Standard plotting
+            ax.plot(x_data, y_data, color=base_color, linewidth=base_linewidth)
+            return
+
+        # Extract variation parameters
+        thinning = variation_params.get('thinning_strength', 0.0)
+        fading = variation_params.get('fading_strength', 0.0)
+        dashing = variation_params.get('dash_density', 0.0)
+
+        # 实现沿线条的粗细和颜色变化效果
+        if thinning > 0 or fading > 0:
+            # 分段绘制实现变化效果
+            n_segments = max(40, len(x_data) // 8)  # 更多段数确保细致变化
+            segment_indices = np.linspace(0, len(x_data)-1, n_segments+1, dtype=int)
+
+            # 使用固定随机种子确保一致的变化模式
+            import random
+            random.seed(42)
+
+            for i in range(len(segment_indices) - 1):
+                start_idx = segment_indices[i]
+                end_idx = segment_indices[i+1]
+
+                # 创建更复杂的变化模式
+                # 使用多个正弦波叠加 + 噪声模拟真实的线条退化
+                position = i / max(1, len(segment_indices) - 2)  # 0 to 1
+
+                # 多频率正弦波叠加
+                wave1 = np.sin(position * 2 * np.pi * 3)  # 3个周期
+                wave2 = np.sin(position * 2 * np.pi * 7) * 0.5  # 7个周期，幅度减半
+                wave3 = np.sin(position * 2 * np.pi * 13) * 0.25  # 13个周期，幅度更小
+                combined_wave = (wave1 + wave2 + wave3) / 1.75  # 归一化
+
+                # 添加随机噪声
+                noise = (random.random() - 0.5) * 0.6  # ±30% 噪声
+
+                # 组合波形和噪声，转换到0-1范围
+                variation_factor = (combined_wave + noise + 1) / 2
+                variation_factor = max(0.1, min(0.9, variation_factor))  # 限制范围
+
+                # 计算该段的线宽变化 - 大幅增强变化范围
+                if thinning > 0:
+                    # 变化范围：从极细到正常粗细 - 大幅增强对比
+                    min_width = base_linewidth * (1.0 - 0.95 * thinning)  # 最多变细95%
+                    max_width = base_linewidth * (1.0 + 0.5 * thinning)   # 最多变粗50%
+                    segment_linewidth = min_width + (max_width - min_width) * variation_factor
+                    segment_linewidth = max(0.02, segment_linewidth)  # 允许更细的线条
+                else:
+                    segment_linewidth = base_linewidth
+
+                # 计算该段的颜色变化（褪色效果）- 大幅增强颜色对比
+                if fading > 0 and base_color == 'black':
+                    # 变化范围：从黑色到很浅的灰色 - 大幅增强对比
+                    max_gray = fading * 0.85  # 最大灰度值增加到0.85（很浅）
+                    gray_value = max_gray * (1.0 - variation_factor)  # 反向变化
+                    segment_color = (gray_value, gray_value, gray_value)
+                else:
+                    segment_color = base_color
+
+                # 绘制该段线条
+                segment_x = x_data[start_idx:end_idx+1]
+                segment_y = y_data[start_idx:end_idx+1]
+
+                if len(segment_x) > 1:  # 确保有足够的点绘制
+                    ax.plot(segment_x, segment_y,
+                           color=segment_color,
+                           linewidth=segment_linewidth,
+                           linestyle='-',
+                           solid_capstyle='round',  # 圆角端点
+                           solid_joinstyle='round',  # 圆角连接
+                           antialiased=True)  # 抗锯齿
+        else:
+            # 没有变化，正常绘制
+            ax.plot(x_data, y_data, color=base_color, linewidth=base_linewidth)
+
+        # 虚线效果（如果需要）
+        if dashing > 0:
+            dash_length = max(2, int(8 * (1 - dashing)))
+            gap_length = max(1, int(4 * dashing))
+            ax.plot(x_data, y_data, color=base_color, linewidth=base_linewidth * 0.8,
+                   linestyle='--', dashes=[dash_length, gap_length], alpha=0.4)
         
     def load_csv_data(self, csv_path: Union[str, Path]) -> Dict:
         try:
@@ -67,7 +164,8 @@ class CleanChartGenerator:
                            ylabel: str = "Intensity",
                            title: Optional[str] = None,
                            pure_line_only: bool = False,
-                           pixel_perfect: bool = True) -> None:
+                           pixel_perfect: bool = True,
+                           line_variation_params: Optional[Dict] = None) -> None:
         """
         Generate a clean chart with optional style diversity
 
@@ -93,8 +191,9 @@ class CleanChartGenerator:
             fig.patch.set_facecolor('white')
             ax.set_facecolor('white')
 
-            # Plot the line with exact positioning
-            ax.plot(x_data, y_data, color='black', linewidth=self.line_width)
+            # Plot the line with exact positioning (with optional variations)
+            self._plot_line_with_variations(ax, x_data, y_data, 'black',
+                                          self.line_width, line_variation_params)
 
             # Set exact data limits to ensure consistent positioning
             x_margin = (x_data.max() - x_data.min()) * 0.02
@@ -128,8 +227,9 @@ class CleanChartGenerator:
             fig.patch.set_facecolor(background_color)
             ax.set_facecolor(background_color)
 
-            # Plot the data with consistent positioning
-            ax.plot(x_data, y_data, color=line_color, linewidth=self.line_width)
+            # Plot the data with consistent positioning (with optional variations)
+            self._plot_line_with_variations(ax, x_data, y_data, line_color,
+                                          self.line_width, line_variation_params)
 
             # Set consistent data limits
             x_margin = (x_data.max() - x_data.min()) * 0.02
@@ -149,7 +249,9 @@ class CleanChartGenerator:
             fig.patch.set_facecolor(self.background_color)
             ax.set_facecolor(self.background_color)
 
-            ax.plot(x_data, y_data, color=self.line_color, linewidth=self.line_width)
+            # Plot with traditional styling (with optional variations)
+            self._plot_line_with_variations(ax, x_data, y_data, self.line_color,
+                                          self.line_width, line_variation_params)
 
             # Set consistent data limits
             x_margin = (x_data.max() - x_data.min()) * 0.02

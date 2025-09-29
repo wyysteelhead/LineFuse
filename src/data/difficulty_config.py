@@ -3,6 +3,11 @@ Difficulty configuration for blur effects
 模糊效果的难度级别配置
 """
 
+# 全局配置
+GLOBAL_CONFIG = {
+    'clean_line_width': 1.2,  # Clean图统一使用的线条粗细，便于去模糊任务
+}
+
 # 难度级别配置
 DIFFICULTY_CONFIG = {
     'easy': {
@@ -14,9 +19,9 @@ DIFFICULTY_CONFIG = {
 
         # 基础效果参数范围
         'line_thinning_fading': {
-            'thinning_strength': (0.1, 0.2),  # Easy: 轻微变细
-            'fading_strength': (0.1, 0.2),    # Easy: 轻微变淡
-            'num_regions': (0, 1),            # Easy: 0-1个区域，保持大部分正常
+            'thinning_strength': (0.2, 0.4),  # Easy: 轻微变细
+            'fading_strength': (0.2, 0.4),    # Easy: 轻微变淡
+            'num_regions': (1, 2),            # Easy: 0-1个区域，保持大部分正常
         },
         'line_discontinuity': {
             'gap_density': (0.05, 0.08),  # 温和虚线：5-8%覆盖率
@@ -71,43 +76,43 @@ DIFFICULTY_CONFIG = {
 
     'medium': {
         'name': '中等',
-        'base_intensity_range': (0.15, 0.25),  # 提高基础强度确保足够模糊
-        'additional_intensity_range': (0.2, 0.35),  # 提高额外效果强度
-        'additional_effects_count': (0, 1),  # 减少额外效果让线条变化更突出
+        'base_intensity_range': (0.3, 0.5),  # 大幅提高基础强度
+        'additional_intensity_range': (0.4, 0.6),  # 大幅提高额外效果强度
+        'additional_effects_count': (1, 2),  # 增加额外效果数量
         'line_width': 0.3,
 
         'line_thinning_fading': {
-            'thinning_strength': (0.2, 0.4),  # Medium: 中等变细
-            'fading_strength': (0.2, 0.4),    # Medium: 中等变淡
-            'num_regions': (1, 2),            # Medium: 1-2个区域
+            'thinning_strength': (0.5, 0.8),  # Medium: 大幅提升强度
+            'fading_strength': (0.5, 0.8),    # Medium: 大幅提升强度
+            'num_regions': (2, 4),            # Medium: 增加区域数量
         },
         'line_discontinuity': {
-            'gap_density': (0.08, 0.12),  # 中等虚线：8-12%覆盖率
-            'gap_size_range': ((1, 2), (1, 2))  # 小间隙：1-2像素
+            'gap_density': (0.15, 0.25),  # 中等虚线：大幅增加覆盖率
+            'gap_size_range': ((2, 4), (3, 5))  # 增加间隙尺寸
         },
         'print_noise': {
-            'noise_intensity': (0.008, 0.025)  # 提高噪点 0.003-0.012 → 0.008-0.025
+            'noise_intensity': (0.02, 0.05)  # 增强噪点强度
         },
         'background_variation': {
-            'intensity': (0.4, 0.6)  # 提高背景变化 0.06-0.12 → 0.12-0.22
+            'intensity': (0.5, 0.7)  # 增强背景变化
         },
 
         'gaussian_blur': {
-            'kernel_size_range': ((5, 7), (7, 9)),  # 修复：中等难度增加模糊
-            'sigma_range': ((0.8, 1.2), (1.0, 1.5))  # 修复：增加区分度
+            'kernel_size_range': ((7, 11), (9, 15)),  # 大幅增加模糊
+            'sigma_range': ((1.5, 2.5), (2.0, 3.0))  # 大幅增加模糊强度
         },
         'motion_blur': {
-            'kernel_size_range': ((5, 7), (5, 9))  # 修复：中等难度增加模糊
+            'kernel_size_range': ((7, 12), (10, 18))  # 大幅增加运动模糊
         },
         'compression': {
-            'quality_range': ((10, 20), (5, 15))  # 降低质量增加压缩伪影
+            'quality_range': ((5, 15), (3, 10))  # 大幅降低质量
         },
         'lowres': {
-            'downscale_factor_range': ((1, 2), (1, 3))  # 增加下采样确保模糊
+            'downscale_factor_range': ((2, 4), (3, 6))  # 大幅增加下采样
         },
         'spectral_degradation': {
-            'degradation_strength': (0.2, 0.35),  # 增加强度确保明显退化
-            'range_percentage': (0.3, 0.45)  # 增加范围影响更多区域
+            'degradation_strength': (0.4, 0.6),  # 大幅增加退化强度
+            'range_percentage': (0.4, 0.6)  # 大幅增加影响范围
         },
         'threshold': {
             'threshold_range': ((60, 90), (50, 95))  # 更低的阈值，确保不影响线条抗锯齿
@@ -133,43 +138,43 @@ DIFFICULTY_CONFIG = {
 
     'hard': {
         'name': '困难',
-        'base_intensity_range': (0.25, 0.35),  # 提高基础强度确保比medium更模糊
-        'additional_intensity_range': (0.35, 0.5),  # 提高额外效果强度
-        'additional_effects_count': (0, 2),  # 减少额外效果突出线条变化特征
+        'base_intensity_range': (0.5, 0.8),  # 极大提高基础强度
+        'additional_intensity_range': (0.6, 0.9),  # 极大提高额外效果强度
+        'additional_effects_count': (2, 4),  # 大幅增加额外效果数量
         'line_width': 0.15,
 
         'line_thinning_fading': {
-            'thinning_strength': (0.3, 0.6),  # Hard: 较强变细但不过度
-            'fading_strength': (0.3, 0.6),    # Hard: 较强变淡但不过度
-            'num_regions': (1, 3),            # Hard: 1-3个区域
+            'thinning_strength': (0.8, 0.95),  # Hard: 极强变细
+            'fading_strength': (0.8, 0.95),    # Hard: 极强变淡
+            'num_regions': (3, 6),             # Hard: 大幅增加区域数量
         },
         'line_discontinuity': {
-            'gap_density': (0.12, 0.15),  # 高虚线：12-15%覆盖率（仍然保守）
-            'gap_size_range': ((1, 2), (1, 2))  # 小间隙：1-2像素
+            'gap_density': (0.25, 0.4),  # 高虚线：大幅增加覆盖率
+            'gap_size_range': ((3, 6), (5, 8))  # 大幅增加间隙尺寸
         },
         'print_noise': {
-            'noise_intensity': (0.02, 0.05)  # 提高噪点 0.008-0.025 → 0.02-0.05
+            'noise_intensity': (0.05, 0.1)  # 大幅增强噪点
         },
         'background_variation': {
-            'intensity': (0.7, 0.9)  # 提高背景变化 0.12-0.22 → 0.18-0.35
+            'intensity': (0.7, 0.9)  # 最强背景变化
         },
 
         'gaussian_blur': {
-            'kernel_size_range': ((7, 11), (9, 13)),  # 修复：困难难度最大模糊
-            'sigma_range': ((1.5, 2.0), (1.8, 2.5))  # 修复：最大区分度
+            'kernel_size_range': ((11, 17), (15, 21)),  # 极大模糊
+            'sigma_range': ((2.5, 4.0), (3.0, 5.0))  # 极大模糊强度
         },
         'motion_blur': {
-            'kernel_size_range': ((7, 11), (9, 15))  # 修复：困难难度最大模糊
+            'kernel_size_range': ((12, 20), (15, 25))  # 极大运动模糊
         },
         'compression': {
-            'quality_range': ((5, 10), (2, 5))  # 更低质量确保明显压缩伪影
+            'quality_range': ((2, 8), (1, 5))  # 极低质量
         },
         'lowres': {
-            'downscale_factor_range': ((2, 4), (3, 5))  # 更大下采样因子确保更模糊
+            'downscale_factor_range': ((4, 8), (6, 10))  # 极大下采样
         },
         'spectral_degradation': {
-            'degradation_strength': (0.3, 0.5),  # 更强的退化确保比medium更明显
-            'range_percentage': (0.4, 0.6)  # 更大范围影响
+            'degradation_strength': (0.6, 0.9),  # 极强退化
+            'range_percentage': (0.5, 0.8)  # 极大影响范围
         },
         'threshold': {
             'threshold_range': ((70, 100), (60, 105))  # 更低的阈值，避免线条消失
@@ -177,19 +182,19 @@ DIFFICULTY_CONFIG = {
 
         # 新增效果配置 - 困难难度
         'scan': {
-            'blur_strength': 1.8,           # 最强扫描模糊
-            'contrast_reduction': 0.7,      # 最大对比度降低
-            'noise_level': 0.25             # 最多扫描噪声
+            'blur_strength': 2.5,           # 极强扫描模糊
+            'contrast_reduction': 0.5,      # 极大对比度降低
+            'noise_level': 0.4              # 极多扫描噪声
         },
         'text': {
-            'num_texts': (3, 5),            # 最多文本数量
-            'font_size': (16, 28),          # 最大字体范围
-            'opacity': (0.5, 0.8)           # 最高透明度
+            'num_texts': (5, 8),            # 极多文本数量
+            'font_size': (20, 35),          # 极大字体范围
+            'opacity': (0.6, 0.9)           # 极高透明度
         },
         'lines': {
-            'num_lines': (3, 5),            # 最多干扰线
-            'thickness': (2, 4),            # 最粗线条
-            'opacity': (0.6, 0.8)           # 最高透明度
+            'num_lines': (5, 8),            # 极多干扰线
+            'thickness': (3, 6),            # 极粗线条
+            'opacity': (0.7, 0.9)           # 极高透明度
         }
     }
 }
@@ -199,6 +204,10 @@ def get_difficulty_config(difficulty: str) -> dict:
     if difficulty not in DIFFICULTY_CONFIG:
         raise ValueError(f"Unknown difficulty: {difficulty}. Available: {list(DIFFICULTY_CONFIG.keys())}")
     return DIFFICULTY_CONFIG[difficulty]
+
+def get_global_config() -> dict:
+    """获取全局配置"""
+    return GLOBAL_CONFIG
 
 def get_random_value_in_range(value_range: tuple, is_int: bool = False):
     """在指定范围内随机取值"""
