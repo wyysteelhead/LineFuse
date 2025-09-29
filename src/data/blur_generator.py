@@ -588,9 +588,9 @@ class BlurGenerator:
                                gap_density: float = 0.1,
                                gap_size_range: tuple = (1, 2)) -> np.ndarray:
         """
-        创建温和虚线效果 - 规律性小间隙，保持线条主体连续
-        gap_density: 控制虚线间隔频率（0.05-0.15，低频率高质量）
-        gap_size_range: 单个间隙大小（1-2像素，真正的小间隙）
+        创建局部虚线效果 - 部分区域高密度断续，部分区域保持连续
+        gap_density: 控制整体虚线间隔频率（0.05-0.20）
+        gap_size_range: 单个间隙大小（1-2像素）
         """
         result = image.copy()
         h, w = result.shape[:2]
@@ -602,45 +602,66 @@ class BlurGenerator:
             gray = image.copy()
 
         # 找到线条像素（暗色像素）
-        line_mask = gray < 180  # 稍微放宽线条检测
+        line_mask = gray < 180
         line_coords = np.where(line_mask)
 
-        if len(line_coords[0]) > 0:
-            # 温和虚线策略：低密度但规律性的小间隙
-            # 大幅降低覆盖率，确保线条主体保持连续
-            safe_coverage = min(0.15, gap_density)  # 强制限制最大15%覆盖率
-            num_dash_gaps = int(len(line_coords[0]) * safe_coverage)
+        if len(line_coords[0]) == 0:
+            return result
 
-            if num_dash_gaps > 0:
-                # 均匀分布而非随机分布，创造更规律的虚线感
-                step = max(1, len(line_coords[0]) // num_dash_gaps)
-                indices = list(range(0, len(line_coords[0]), step))[:num_dash_gaps]
+        # 局部断续策略：将图像分成多个区域，每个区域有不同的断续密度
+        num_regions = random.randint(3, 6)  # 3-6个不同的局部区域
 
-                for idx in indices:
-                    gap_y, gap_x = line_coords[0][idx], line_coords[1][idx]
+        for region in range(num_regions):
+            # 每个区域随机选择一个局部范围
+            region_y_start = random.randint(0, h//3)
+            region_y_end = random.randint(region_y_start + h//4, h)
+            region_x_start = random.randint(0, w//3)
+            region_x_end = random.randint(region_x_start + w//4, w)
 
-                    # 真正的小间隙 - 1-2像素
-                    gap_size = min(2, max(1, random.randint(gap_size_range[0], gap_size_range[1])))
+            # 找到该区域内的线条像素
+            region_mask = (
+                (line_coords[0] >= region_y_start) & (line_coords[0] <= region_y_end) &
+                (line_coords[1] >= region_x_start) & (line_coords[1] <= region_x_end)
+            )
+            region_line_coords = (line_coords[0][region_mask], line_coords[1][region_mask])
 
-                    # 单像素或双像素间隙
+            if len(region_line_coords[0]) == 0:
+                continue
+
+            # 每个区域有不同的断续概率和密度
+            region_probability = random.uniform(0.3, 0.8)  # 30%-80%概率该区域有断续
+            if random.random() > region_probability:
+                continue  # 这个区域保持完全连续
+
+            # 区域内的断续密度变化
+            region_density = gap_density * random.uniform(0.5, 2.0)  # 密度在50%-200%之间变化
+            safe_coverage = min(0.25, region_density)  # 单个区域最大25%覆盖率
+
+            num_gaps = int(len(region_line_coords[0]) * safe_coverage)
+
+            if num_gaps > 0:
+                # 在该区域内随机分布间隙（而不是均匀分布）
+                gap_indices = random.sample(range(len(region_line_coords[0])), min(num_gaps, len(region_line_coords[0])))
+
+                for idx in gap_indices:
+                    gap_y, gap_x = region_line_coords[0][idx], region_line_coords[1][idx]
+
+                    # 随机间隙大小
+                    gap_size = random.randint(gap_size_range[0], gap_size_range[1])
+
+                    # 创建间隙
+                    white_color = 255 if len(result.shape) == 2 else (255, 255, 255)
+
                     if gap_size == 1:
                         # 单像素间隙
-                        if len(result.shape) == 3:
-                            result[gap_y, gap_x] = (255, 255, 255)
-                        else:
-                            result[gap_y, gap_x] = 255
+                        result[gap_y, gap_x] = white_color
                     else:
-                        # 2像素间隙（十字形）
-                        if gap_y > 0:
-                            result[gap_y-1, gap_x] = 255 if len(result.shape) == 2 else (255, 255, 255)
-                        if gap_y < h-1:
-                            result[gap_y+1, gap_x] = 255 if len(result.shape) == 2 else (255, 255, 255)
-                        if gap_x > 0:
-                            result[gap_y, gap_x-1] = 255 if len(result.shape) == 2 else (255, 255, 255)
-                        if gap_x < w-1:
-                            result[gap_y, gap_x+1] = 255 if len(result.shape) == 2 else (255, 255, 255)
-                        # 中心点
-                        result[gap_y, gap_x] = 255 if len(result.shape) == 2 else (255, 255, 255)
+                        # 多像素间隙（十字形或方形）
+                        for dy in range(-gap_size//2, gap_size//2 + 1):
+                            for dx in range(-gap_size//2, gap_size//2 + 1):
+                                ny, nx = gap_y + dy, gap_x + dx
+                                if 0 <= ny < h and 0 <= nx < w:
+                                    result[ny, nx] = white_color
 
         return result
 
