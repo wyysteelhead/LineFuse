@@ -1023,10 +1023,10 @@ class BlurGenerator:
             num_effects = get_random_value_in_range(config['additional_effects_count'], is_int=True)
 
         # 定义互斥的破坏性效果组（只能选其中1个）
-        destructive_effects = ['lowres', 'gaussian', 'compression']
+        destructive_effects = ['lowres', 'gaussian', 'compression', 'print_scan', 'motion']
 
         # 其他效果（可以多选）
-        other_effects = ['motion', 'spectral_degradation', 'text', 'lines', 'scan', 'localblur', 'scan_lines', 'print_scan']
+        other_effects = ['spectral_degradation', 'text', 'lines', 'scan', 'localblur', 'scan_lines']
 
         selected_effects = []
 
@@ -1085,11 +1085,15 @@ class BlurGenerator:
                     effect_details.append(f"gaussian(kernel={reduced_kernel}, sigma={reduced_sigma})")
                     result = self.gaussian_blur(result, kernel_size_range=reduced_kernel, sigma_range=reduced_sigma)
                 elif effect == 'motion':
-                    # 使用配置化的运动模糊参数
+                    # 使用降低强度的运动模糊参数（减少30%）
                     motion_config = config['motion_blur']
-                    kernel_range = get_random_range_in_ranges(motion_config['kernel_size_range'], is_int=True)
-                    effect_details.append(f"motion(kernel={kernel_range})")
-                    result = self.motion_blur(result, kernel_size_range=kernel_range)
+                    original_kernel = get_random_range_in_ranges(motion_config['kernel_size_range'], is_int=True)
+
+                    # 降低kernel大小
+                    reduced_kernel = (max(3, int(original_kernel[0] * 0.7)), max(5, int(original_kernel[1] * 0.7)))
+
+                    effect_details.append(f"motion(kernel={reduced_kernel})")
+                    result = self.motion_blur(result, kernel_size_range=reduced_kernel)
                 elif effect == 'compression':
                     # 使用配置化的压缩参数
                     comp_config = config['compression']
