@@ -98,8 +98,8 @@ DIFFICULTY_CONFIG = {
         },
 
         'gaussian_blur': {
-            'kernel_size_range': ((7, 9), (9, 13)),  # 提高下限：5→7, 7→9
-            'sigma_range': ((1.2, 1.8), (1.5, 2.2))  # 提高下限：0.8→1.2, 1.0→1.5
+            'kernel_size_range': ((5, 7), (7, 9)),  # 适度降低：保持可见效果但不过度
+            'sigma_range': ((1.0, 1.5), (1.2, 1.8))  # 适度降低：保持可见效果但不过度
         },
         'motion_blur': {
             'kernel_size_range': ((7, 10), (9, 12))  # 提高下限：5→7, 5→9
@@ -160,8 +160,8 @@ DIFFICULTY_CONFIG = {
         },
 
         'gaussian_blur': {
-            'kernel_size_range': ((9, 13), (11, 17)),  # 提高下限：7→9, 9→11
-            'sigma_range': ((2.0, 2.8), (2.5, 3.5))  # 提高下限：1.5→2.0, 1.8→2.5
+            'kernel_size_range': ((7, 11), (9, 13)),  # 降低上限：避免过度模糊
+            'sigma_range': ((1.5, 2.2), (1.8, 2.8))  # 降低上限：避免过度模糊
         },
         'motion_blur': {
             'kernel_size_range': ((9, 13), (12, 18))  # 提高下限：7→9, 9→12

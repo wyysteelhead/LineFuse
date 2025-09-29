@@ -1011,6 +1011,11 @@ class BlurGenerator:
         Apply random additional blur effects on top of base degradation using difficulty-based parameters
         在基础退化的基础上随机添加额外的模糊效果（使用配置化的难度参数）
         """
+        # 为每次调用生成新的随机状态，避免固定模式
+        import time
+        new_seed = int(time.time() * 1000000) % 100000  # 使用微秒时间戳
+        random.seed(new_seed)
+
         config = self.difficulty_config
         if num_effects is None:
             num_effects = get_random_value_in_range(config['additional_effects_count'], is_int=True)
@@ -1031,6 +1036,8 @@ class BlurGenerator:
         effect_details = []
 
         print(f"🔧 ADDITIONAL BLUR: {self.difficulty} difficulty, applying {num_effects} effects: {selected_effects}")
+        print(f"   Config additional_effects_count: {config['additional_effects_count']}")
+        print(f"   Generated num_effects: {num_effects}")
 
         for effect in selected_effects:
             try:

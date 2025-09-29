@@ -440,7 +440,11 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
 
         # 如果可以生成模糊效果，初始化模糊生成器
         if can_generate_blur:
-            blur_generator = BlurGenerator(difficulty=difficulty)
+            # 使用当前时间作为随机种子，确保每次运行都不同
+            import time
+            random_seed = int(time.time() * 1000) % 10000  # 使用毫秒时间戳的后4位
+            blur_generator = BlurGenerator(difficulty=difficulty, random_seed=random_seed)
+            print(f"🎲 {difficulty.upper()} difficulty blur generator initialized with seed: {random_seed}")
 
         # 获取全局配置
         global_config = get_global_config()
