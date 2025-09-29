@@ -134,7 +134,8 @@ def create_comprehensive_blur_demo():
                             output_path=output_path,
                             thinning_strength=thin_strength,
                             fading_strength=fade_strength,
-                            dash_density=0.0  # demo中不加虚线效果
+                            dash_density=0.0,  # demo中不加虚线效果
+                            figure_size=(512, 512)  # 与demo base_image保持一致
                         )
                         # 直接跳过图像保存，因为已经通过matplotlib保存了
                         continue  # 跳过后续的cv2.imwrite，直接进入下一个效果

@@ -648,7 +648,8 @@ class BlurGenerator:
                                           output_path: str,
                                           thinning_strength: float = 0.3,
                                           fading_strength: float = 0.3,
-                                          dash_density: float = 0.0) -> np.ndarray:
+                                          dash_density: float = 0.0,
+                                          figure_size: tuple = (1024, 1024)) -> np.ndarray:
         """
         Generate chart with line variations using matplotlib drawing (not image processing)
         通过matplotlib绘制时的参数控制实现线条变化，避免图像处理伪影
@@ -667,6 +668,7 @@ class BlurGenerator:
 
         # 创建带有线条变化功能的图表生成器
         generator = CleanChartGenerator(
+            figure_size=figure_size,       # 使用指定的图像大小
             enable_line_variations=True,  # 启用线条变化
             enable_style_diversity=False,  # demo中禁用样式多样化
             style_diversity_level=0.0      # 确保一致性
