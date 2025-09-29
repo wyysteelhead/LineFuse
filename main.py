@@ -14,6 +14,7 @@ import numpy as np
 from data.clean_chart_generator import CleanChartGenerator
 from data.dataset_builder import DatasetBuilder
 from data.blur_generator import BlurGenerator
+from data.difficulty_config import get_random_value_in_range
 
 def create_comprehensive_blur_demo():
     """
@@ -534,8 +535,35 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
                                     )
 
                                     # 加载生成的图像以便后续处理
-                                    base_degraded = blur_generator.load_image(blur_output_path)
-                                    base_effects_log = [f"line_variations(drawing-time)"]
+                                    base_image = blur_generator.load_image(blur_output_path)
+
+                                    # 应用其他base effects（除了line_variations，它已经在绘图时应用了）
+                                    config = blur_generator.difficulty_config
+                                    other_effects_log = []
+
+                                    # 1. 底色变化
+                                    bg_intensity = get_random_value_in_range(config['background_variation']['intensity'])
+                                    base_image = blur_generator.background_color_variation(base_image, intensity=bg_intensity)
+                                    other_effects_log.append(f"background_variation(intensity={bg_intensity:.3f})")
+
+                                    # 2. 虚线效果（图像处理版本）
+                                    discontinuity_config = config['line_discontinuity']
+                                    gap_density = get_random_value_in_range(discontinuity_config['gap_density'])
+                                    gap_size_range = discontinuity_config['gap_size_range'][0]
+                                    if gap_size_range[0] > gap_size_range[1]:
+                                        gap_size_range = (gap_size_range[1], gap_size_range[0])
+                                    base_image = blur_generator.line_discontinuity_blur(base_image, gap_density, gap_size_range)
+                                    other_effects_log.append(f"line_discontinuity(density={gap_density:.3f}, gap_range={gap_size_range})")
+
+                                    # 3. 打印噪点
+                                    noise_intensity = get_random_value_in_range(config['print_noise']['noise_intensity'])
+                                    base_image = blur_generator.add_print_noise(base_image, noise_intensity=noise_intensity)
+                                    other_effects_log.append(f"print_noise(intensity={noise_intensity:.3f})")
+
+                                    # 组合所有base effects日志
+                                    line_variations_log = f"line_variations(drawing-time)"
+                                    base_effects_log = [line_variations_log] + other_effects_log
+                                    base_degraded = base_image
                                 else:
                                     # 回退到原来的图像处理方法
                                     base_image = blur_generator.load_image(blur_base_file)
