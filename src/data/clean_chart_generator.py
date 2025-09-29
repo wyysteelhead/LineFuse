@@ -78,9 +78,11 @@ class CleanChartGenerator:
             n_segments = max(40, len(x_data) // 8)  # 更多段数确保细致变化
             segment_indices = np.linspace(0, len(x_data)-1, n_segments+1, dtype=int)
 
-            # 使用固定随机种子确保一致的变化模式
+            # 使用动态随机种子确保每次生成不同的变化模式
             import random
-            random.seed(42)
+            import time
+            dynamic_seed = int(time.time() * 1000000) % 100000  # 基于微秒时间戳
+            random.seed(dynamic_seed)
 
             for i in range(len(segment_indices) - 1):
                 start_idx = segment_indices[i]
