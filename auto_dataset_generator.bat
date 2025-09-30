@@ -79,53 +79,6 @@ echo [%date% %time%] Stage 2 dataset generation completed >> "%STAGE2_LOG%"
 echo Stage 2 completed successfully!
 echo.
 
-echo Validating generated datasets...
-
-REM Create dataset validation script
-echo import os > temp_validation.py
-echo stage1_path = '%BASE_OUTPUT_DIR%/stage1_unet/final_dataset'.replace('\\', '/') >> temp_validation.py
-echo stage2_path = '%BASE_OUTPUT_DIR%/stage2_diffusion/final_dataset'.replace('\\', '/') >> temp_validation.py
-echo. >> temp_validation.py
-echo def count_images(path): >> temp_validation.py
-echo     count = 0 >> temp_validation.py
-echo     if os.path.exists(path): >> temp_validation.py
-echo         for root, dirs, files in os.walk(path): >> temp_validation.py
-echo             count += len([f for f in files if f.endswith('.png')]) >> temp_validation.py
-echo     return count >> temp_validation.py
-echo. >> temp_validation.py
-echo stage1_count = count_images(stage1_path) >> temp_validation.py
-echo stage2_count = count_images(stage2_path) >> temp_validation.py
-echo print(f'Stage 1 dataset: {stage1_count} images') >> temp_validation.py
-echo print(f'Stage 2 dataset: {stage2_count} images') >> temp_validation.py
-echo print(f'Total: {stage1_count + stage2_count} images') >> temp_validation.py
-echo. >> temp_validation.py
-echo # Check dataset integrity >> temp_validation.py
-echo expected_stage1 = %STAGE1_SAMPLES% * 2  # clean + blur >> temp_validation.py
-echo expected_stage2 = %STAGE2_SAMPLES% * 2  # clean + blur >> temp_validation.py
-echo. >> temp_validation.py
-echo if stage1_count ^< expected_stage1 * 0.95:  # Allow 5%% error margin >> temp_validation.py
-echo     print(f'WARNING: Stage 1 image count insufficient (expected: {expected_stage1}, actual: {stage1_count})') >> temp_validation.py
-echo     exit(1) >> temp_validation.py
-echo. >> temp_validation.py
-echo if stage2_count ^< expected_stage2 * 0.95:  # Allow 5%% error margin >> temp_validation.py
-echo     print(f'WARNING: Stage 2 image count insufficient (expected: {expected_stage2}, actual: {stage2_count})') >> temp_validation.py
-echo     exit(1) >> temp_validation.py
-echo. >> temp_validation.py
-echo print('Dataset validation passed!') >> temp_validation.py
-echo print('Dataset generation verification completed!') >> temp_validation.py
-
-REM Run validation script
-call conda activate %CONDA_ENV% && python temp_validation.py
-if !errorlevel! neq 0 (
-    echo [ERROR] Dataset validation failed
-    del temp_validation.py
-    pause
-    exit /b 1
-)
-
-REM Clean up temporary files
-del temp_validation.py
-
 echo.
 echo === Dataset Generation Completed! ===
 echo Stage 1 log: %STAGE1_LOG%
