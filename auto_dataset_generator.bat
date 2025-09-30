@@ -8,7 +8,7 @@ REM Configuration parameters
 set STAGE1_SAMPLES=8000
 set STAGE2_SAMPLES=25000
 set BASE_OUTPUT_DIR=dataset\training_dataset
-set PYTHON_PATH=/root/miniconda3/envs/linefuse/bin/python
+set CONDA_ENV=linefuse
 set LOG_DIR=logs
 
 echo === LineFuse Automatic Dataset Generator - Windows Batch Version ===
@@ -38,13 +38,14 @@ set STAGE1_LOG=%LOG_DIR%\stage1_generation_!TIMESTAMP!.log
 set STAGE2_LOG=%LOG_DIR%\stage2_generation_!TIMESTAMP!.log
 
 echo Starting Stage 1 dataset generation...
+echo Activating conda environment: %CONDA_ENV%
 echo Log file: %STAGE1_LOG%
-echo Command: %PYTHON_PATH% main.py generate --samples %STAGE1_SAMPLES% --output %BASE_OUTPUT_DIR%\stage1_unet --style-level 0.6 --image-size 1024
+echo Command: python main.py generate --samples %STAGE1_SAMPLES% --output %BASE_OUTPUT_DIR%\stage1_unet --style-level 0.6 --image-size 1024
 echo.
 
 REM Stage 1: U-Net dataset generation
 echo [%date% %time%] Starting Stage 1 dataset generation > "%STAGE1_LOG%"
-%PYTHON_PATH% main.py generate --samples %STAGE1_SAMPLES% --output %BASE_OUTPUT_DIR%\stage1_unet --style-level 0.6 --image-size 1024 >> "%STAGE1_LOG%" 2>&1
+call conda activate %CONDA_ENV% && python main.py generate --samples %STAGE1_SAMPLES% --output %BASE_OUTPUT_DIR%\stage1_unet --style-level 0.6 --image-size 1024 >> "%STAGE1_LOG%" 2>&1
 
 if !errorlevel! neq 0 (
     echo [ERROR] Stage 1 execution failed, exit code: !errorlevel!
@@ -58,13 +59,14 @@ echo Stage 1 completed successfully!
 echo.
 
 echo Starting Stage 2 dataset generation...
+echo Activating conda environment: %CONDA_ENV%
 echo Log file: %STAGE2_LOG%
-echo Command: %PYTHON_PATH% main.py generate --samples %STAGE2_SAMPLES% --output %BASE_OUTPUT_DIR%\stage2_diffusion --style-level 1.0 --image-size 1024
+echo Command: python main.py generate --samples %STAGE2_SAMPLES% --output %BASE_OUTPUT_DIR%\stage2_diffusion --style-level 1.0 --image-size 1024
 echo.
 
 REM Stage 2: Diffusion model dataset generation
 echo [%date% %time%] Starting Stage 2 dataset generation > "%STAGE2_LOG%"
-%PYTHON_PATH% main.py generate --samples %STAGE2_SAMPLES% --output %BASE_OUTPUT_DIR%\stage2_diffusion --style-level 1.0 --image-size 1024 >> "%STAGE2_LOG%" 2>&1
+call conda activate %CONDA_ENV% && python main.py generate --samples %STAGE2_SAMPLES% --output %BASE_OUTPUT_DIR%\stage2_diffusion --style-level 1.0 --image-size 1024 >> "%STAGE2_LOG%" 2>&1
 
 if !errorlevel! neq 0 (
     echo [ERROR] Stage 2 execution failed, exit code: !errorlevel!
@@ -113,7 +115,7 @@ echo print('Dataset validation passed!') >> temp_validation.py
 echo print('Dataset generation verification completed!') >> temp_validation.py
 
 REM Run validation script
-%PYTHON_PATH% temp_validation.py
+call conda activate %CONDA_ENV% && python temp_validation.py
 if !errorlevel! neq 0 (
     echo [ERROR] Dataset validation failed
     del temp_validation.py
