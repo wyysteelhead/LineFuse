@@ -1,44 +1,51 @@
 @echo off
-REM LineFuse数据集生成启动器
-REM 双击此文件即可运行PowerShell脚本
+REM LineFuse Dataset Generation Launcher - English Version
+REM Double-click this file to run the dataset generation
 
-echo === LineFuse数据集生成启动器 ===
+echo === LineFuse Dataset Generation Launcher ===
 echo.
-echo 正在启动PowerShell脚本...
-echo 如果出现执行策略错误，请选择 [Y] 允许执行
+echo Starting dataset generation...
+echo This will generate a large dataset, please ensure you have:
+echo - At least 20GB free disk space
+echo - Stable power connection
+echo - Several hours for completion
 echo.
 
-REM 设置执行策略并运行PowerShell脚本
-echo 尝试方法1: 直接执行PowerShell脚本
-powershell.exe -ExecutionPolicy Bypass -File "%~dp0auto_dataset_generator.ps1"
-if %errorlevel% equ 0 goto success
-
+echo Choose your preferred method:
+echo [1] PowerShell version (recommended, more features)
+echo [2] Batch version (simple, more compatible)
+echo [3] Exit
 echo.
-echo 方法1失败，尝试方法2: 通过命令行参数执行
-powershell.exe -ExecutionPolicy Bypass -Command "& '%~dp0auto_dataset_generator.ps1'"
-if %errorlevel% equ 0 goto success
 
-echo.
-echo 方法2失败，尝试方法3: 设置执行策略后执行
-powershell.exe -Command "Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process; & '%~dp0auto_dataset_generator.ps1'"
-if %errorlevel% equ 0 goto success
+set /p choice="Enter your choice (1/2/3): "
 
-:success
-
-if %errorlevel% neq 0 (
+if "%choice%"=="1" (
     echo.
-    echo 执行失败，可能的原因：
-    echo 1. PowerShell执行策略限制
-    echo 2. Python环境未正确配置
-    echo 3. 缺少必要权限
+    echo Starting PowerShell version...
+    echo If you see execution policy errors, choose [Y] to allow execution
     echo.
-    echo 尝试备选方案：批处理版本
+    powershell.exe -ExecutionPolicy Bypass -File "%~dp0auto_dataset_generator.ps1"
+    if %errorlevel% neq 0 (
+        echo.
+        echo PowerShell execution failed. Trying batch version as fallback...
+        echo.
+        pause
+        call "%~dp0auto_dataset_generator_en.bat"
+    )
+) else if "%choice%"=="2" (
     echo.
-    pause
-    call "%~dp0auto_dataset_generator.bat"
+    echo Starting batch version...
+    echo.
+    call "%~dp0auto_dataset_generator_en.bat"
+) else if "%choice%"=="3" (
+    echo Exiting...
+    exit /b 0
 ) else (
+    echo Invalid choice. Using batch version by default...
     echo.
-    echo PowerShell脚本执行完成！
+    call "%~dp0auto_dataset_generator_en.bat"
 )
 
+echo.
+echo Dataset generation process completed!
 pause
