@@ -125,16 +125,30 @@ class ModelTrainer:
 
             if self.mixed_precision:
                 with torch.cuda.amp.autocast():
-                    outputs = self.model(blur_images)
-                    loss = self.loss_fn(outputs, clean_images)
+                    # 检查是否是扩散模型
+                    if hasattr(self.model, 'scheduler') and hasattr(self.model, 'unet'):
+                        # 扩散模型：返回(predicted_noise, target_noise)
+                        noise_pred, noise_target = self.model(clean_images, blur_images)
+                        loss = self.loss_fn(noise_pred, noise_target)
+                    else:
+                        # 普通模型：返回预测图像
+                        outputs = self.model(blur_images)
+                        loss = self.loss_fn(outputs, clean_images)
 
                 self.scaler.scale(loss).backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
             else:
-                outputs = self.model(blur_images)
-                loss = self.loss_fn(outputs, clean_images)
+                # 检查是否是扩散模型
+                if hasattr(self.model, 'scheduler') and hasattr(self.model, 'unet'):
+                    # 扩散模型：返回(predicted_noise, target_noise)
+                    noise_pred, noise_target = self.model(clean_images, blur_images)
+                    loss = self.loss_fn(noise_pred, noise_target)
+                else:
+                    # 普通模型：返回预测图像
+                    outputs = self.model(blur_images)
+                    loss = self.loss_fn(outputs, clean_images)
 
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
@@ -142,10 +156,16 @@ class ModelTrainer:
 
             # Calculate PSNR for this batch
             with torch.no_grad():
-                # Convert from [-1,1] to [0,1] for PSNR calculation
-                pred_01 = (outputs + 1) / 2
-                clean_01 = (clean_images + 1) / 2
-                batch_psnr = calculate_psnr(pred_01, clean_01)
+                # 检查是否是扩散模型
+                if hasattr(self.model, 'scheduler') and hasattr(self.model, 'unet'):
+                    # 扩散模型训练时跳过PSNR计算（输出是噪声，不是图像）
+                    batch_psnr = 0.0  # 占位符，实际验证时会计算真正的PSNR
+                else:
+                    # 普通模型：计算预测图像的PSNR
+                    # Convert from [-1,1] to [0,1] for PSNR calculation
+                    pred_01 = (outputs + 1) / 2
+                    clean_01 = (clean_images + 1) / 2
+                    batch_psnr = calculate_psnr(pred_01, clean_01)
 
             total_loss += loss.item()
             total_psnr += batch_psnr
@@ -182,11 +202,29 @@ class ModelTrainer:
 
                 if self.mixed_precision:
                     with torch.cuda.amp.autocast():
+                        # 检查是否是扩散模型
+                        if hasattr(self.model, 'scheduler') and hasattr(self.model, 'unet'):
+                            # 扩散模型：使用推理模式生成清晰图像
+                            outputs = self.model.inference(blur_images, num_inference_steps=20)
+                            # 计算噪声损失用于验证损失记录
+                            noise_pred, noise_target = self.model(clean_images, blur_images)
+                            loss = self.loss_fn(noise_pred, noise_target)
+                        else:
+                            # 普通模型：直接预测图像
+                            outputs = self.model(blur_images)
+                            loss = self.loss_fn(outputs, clean_images)
+                else:
+                    # 检查是否是扩散模型
+                    if hasattr(self.model, 'scheduler') and hasattr(self.model, 'unet'):
+                        # 扩散模型：使用推理模式生成清晰图像
+                        outputs = self.model.inference(blur_images, num_inference_steps=20)
+                        # 计算噪声损失用于验证损失记录
+                        noise_pred, noise_target = self.model(clean_images, blur_images)
+                        loss = self.loss_fn(noise_pred, noise_target)
+                    else:
+                        # 普通模型：直接预测图像
                         outputs = self.model(blur_images)
                         loss = self.loss_fn(outputs, clean_images)
-                else:
-                    outputs = self.model(blur_images)
-                    loss = self.loss_fn(outputs, clean_images)
 
                 # Convert from [-1,1] to [0,1] for metrics calculation
                 pred_01 = (outputs + 1) / 2
