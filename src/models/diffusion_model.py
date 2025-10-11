@@ -171,6 +171,7 @@ class ConditionalDiffusionModel(nn.Module):
         noise_pred = self.unet(
             model_input,
             timesteps,
+            encoder_hidden_states=None,  # 图像条件任务不需要文本编码
             return_dict=False
         )[0]
         
@@ -200,6 +201,7 @@ class ConditionalDiffusionModel(nn.Module):
                 noise_pred = self.unet(
                     model_input,
                     timestep_batch,
+                    encoder_hidden_states=None,  # 图像条件任务不需要文本编码
                     return_dict=False
                 )[0]
             
