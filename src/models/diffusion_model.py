@@ -133,8 +133,8 @@ class ConditionalDiffusionModel(nn.Module):
                 out_channels=out_channels,
                 block_out_channels=block_out_channels,
                 layers_per_block=layers_per_block,
-                cross_attention_dim=None,
-                encoder_hid_dim=None
+                cross_attention_dim=768,
+                encoder_hid_dim=8
             )
 
             self.scheduler = DDPMScheduler(

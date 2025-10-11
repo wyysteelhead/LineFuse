@@ -2,6 +2,10 @@
 REM LineFuse Automatic Dataset Generator - Windows Batch Version (English)
 REM Compatible with all Windows versions, no PowerShell required
 
+chcp 65001 > nul
+set PYTHONIOENCODING=utf-8
+set PYTHONUTF8=1
+
 setlocal enabledelayedexpansion
 
 REM Configuration parameters
@@ -37,36 +41,36 @@ set TIMESTAMP=!TIMESTAMP: =0!
 set STAGE1_LOG=%LOG_DIR%\stage1_generation_!TIMESTAMP!.log
 set STAGE2_LOG=%LOG_DIR%\stage2_generation_!TIMESTAMP!.log
 
-echo Starting Stage 1 dataset generation...
+@REM echo Starting Stage 1 dataset generation...
 echo Activating conda environment: %CONDA_ENV%
 echo Log file: %STAGE1_LOG%
-echo Command: python main.py generate --samples %STAGE1_SAMPLES% --output %BASE_OUTPUT_DIR%\stage1_unet --style-level 0.6 --image-size 1024
-echo.
+@REM echo Command: python main.py generate --samples %STAGE1_SAMPLES% --output %BASE_OUTPUT_DIR%\stage1_unet --style-level 0.6 --image-size 1024
+@REM echo.
 
-REM Stage 1: U-Net dataset generation
-echo [%date% %time%] Starting Stage 1 dataset generation > "%STAGE1_LOG%"
-call conda activate %CONDA_ENV% && python main.py generate --samples %STAGE1_SAMPLES% --output %BASE_OUTPUT_DIR%\stage1_unet --style-level 0.6 --image-size 1024 >> "%STAGE1_LOG%" 2>&1
+@REM REM Stage 1: U-Net dataset generation
+@REM echo [%date% %time%] Starting Stage 1 dataset generation > "%STAGE1_LOG%"
+@REM call conda activate %CONDA_ENV% && python main.py generate --samples %STAGE1_SAMPLES% --output %BASE_OUTPUT_DIR%\stage1_unet --style-level 0.6 --image-size 1024 >> "%STAGE1_LOG%" 2>&1
 
-if !errorlevel! neq 0 (
-    echo [ERROR] Stage 1 execution failed, exit code: !errorlevel!
-    echo Check log file: %STAGE1_LOG%
-    pause
-    exit /b 1
-)
+@REM if !errorlevel! neq 0 (
+@REM     echo [ERROR] Stage 1 execution failed, exit code: !errorlevel!
+@REM     echo Check log file: %STAGE1_LOG%
+@REM     pause
+@REM     exit /b 1
+@REM )
 
-echo [%date% %time%] Stage 1 dataset generation completed >> "%STAGE1_LOG%"
-echo Stage 1 completed successfully!
-echo.
+@REM echo [%date% %time%] Stage 1 dataset generation completed >> "%STAGE1_LOG%"
+@REM echo Stage 1 completed successfully!
+@REM echo.
 
-echo Starting Stage 2 dataset generation...
-echo Activating conda environment: %CONDA_ENV%
-echo Log file: %STAGE2_LOG%
-echo Command: python main.py generate --samples %STAGE2_SAMPLES% --output %BASE_OUTPUT_DIR%\stage2_diffusion --style-level 1.0 --image-size 1024
-echo.
+@REM echo Starting Stage 2 dataset generation...
+@REM echo Activating conda environment: %CONDA_ENV%
+@REM echo Log file: %STAGE2_LOG%
+@REM echo Command: python main.py generate --samples %STAGE2_SAMPLES% --output %BASE_OUTPUT_DIR%\stage2_diffusion --style-level 1.0 --image-size 1024
+@REM echo.
 
 REM Stage 2: Diffusion model dataset generation
 echo [%date% %time%] Starting Stage 2 dataset generation > "%STAGE2_LOG%"
-call conda activate %CONDA_ENV% && python main.py generate --samples %STAGE2_SAMPLES% --output %BASE_OUTPUT_DIR%\stage2_diffusion --style-level 1.0 --image-size 1024 >> "%STAGE2_LOG%" 2>&1
+call conda activate %CONDA_ENV% && python main.py generate --samples %STAGE2_SAMPLES% --output %BASE_OUTPUT_DIR%\stage2_diffusion_line_only --style-level 1.0 --image-size 1024 --pure-line-only >> "%STAGE2_LOG%" 2>&1
 
 if !errorlevel! neq 0 (
     echo [ERROR] Stage 2 execution failed, exit code: !errorlevel!

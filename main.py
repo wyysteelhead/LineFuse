@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 LineFuse 主程序
 光谱折线图模糊数据生成和模型训练的统一入口
