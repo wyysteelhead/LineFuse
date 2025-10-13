@@ -13,6 +13,8 @@ import torchvision.transforms as transforms
 from sklearn.metrics import mean_squared_error
 import cv2
 import time
+import json
+import hashlib
 
 def monitor_gpu_usage() -> Dict[str, Any]:
     """Monitor GPU memory usage and utilization"""
@@ -75,22 +77,9 @@ class DeblurDataset(Dataset):
         # Get all clean images
         self.clean_files = sorted(list(self.clean_dir.glob("*.png")))
 
-        # 🚀 性能优化：预建索引而不是逐个搜索
-        print("Building dataset index...")
-
-        # 一次性获取所有blur文件并建立索引
-        all_blur_files = list(self.blur_dir.glob("*.png"))
-        blur_index = {}  # clean_stem -> [blur_files]
-
-        for blur_file in all_blur_files:
-            # 从blur文件名中提取对应的clean文件名
-            # 假设格式: spectrum_X_difficulty_effect.png -> spectrum_X
-            parts = blur_file.stem.split('_')
-            if len(parts) >= 2:
-                clean_stem = '_'.join(parts[:2])  # spectrum_X
-                if clean_stem not in blur_index:
-                    blur_index[clean_stem] = []
-                blur_index[clean_stem].append(blur_file)
+        # 🚀 持久化索引系统：建立一次，永久使用
+        index_file = self.blur_dir / ".dataset_index.json"
+        blur_index = self._load_or_build_index(index_file)
 
         # Match clean images with corresponding blur images
         self.image_pairs = []
@@ -98,10 +87,80 @@ class DeblurDataset(Dataset):
             clean_stem = clean_file.stem
             if clean_stem in blur_index:
                 # Add all pairs for this clean image
-                for blur_file in blur_index[clean_stem]:
-                    self.image_pairs.append((clean_file, blur_file))
+                for blur_file_str in blur_index[clean_stem]:
+                    blur_file = Path(blur_file_str)
+                    if blur_file.exists():  # 确保文件仍然存在
+                        self.image_pairs.append((clean_file, blur_file))
 
         print(f"Found {len(self.image_pairs)} image pairs")
+
+    def _load_or_build_index(self, index_file: Path) -> Dict[str, list]:
+        """加载或构建数据集索引"""
+
+        # 计算目录内容的哈希值来检测变化
+        blur_files = sorted(list(self.blur_dir.glob("*.png")))
+        content_hash = self._calculate_dir_hash(blur_files)
+
+        # 尝试加载现有索引
+        if index_file.exists():
+            try:
+                with open(index_file, 'r') as f:
+                    index_data = json.load(f)
+
+                # 检查索引是否仍然有效
+                if index_data.get('content_hash') == content_hash:
+                    print(f"📁 Using cached dataset index ({len(index_data['index'])} entries)")
+                    return index_data['index']
+                else:
+                    print("📁 Directory content changed, rebuilding index...")
+            except (json.JSONDecodeError, KeyError):
+                print("📁 Invalid index file, rebuilding...")
+
+        # 构建新索引
+        print("📁 Building dataset index...")
+        blur_index = {}
+
+        for blur_file in blur_files:
+            # 从blur文件名中提取对应的clean文件名
+            # 假设格式: spectrum_X_difficulty_effect.png -> spectrum_X
+            parts = blur_file.stem.split('_')
+            if len(parts) >= 2:
+                clean_stem = '_'.join(parts[:2])  # spectrum_X
+                if clean_stem not in blur_index:
+                    blur_index[clean_stem] = []
+                blur_index[clean_stem].append(str(blur_file))
+
+        # 保存索引
+        index_data = {
+            'content_hash': content_hash,
+            'index': blur_index,
+            'created_at': time.time(),
+            'total_blur_files': len(blur_files),
+            'total_clean_stems': len(blur_index)
+        }
+
+        try:
+            with open(index_file, 'w') as f:
+                json.dump(index_data, f, indent=2)
+            print(f"💾 Saved dataset index to {index_file}")
+        except Exception as e:
+            print(f"⚠️  Failed to save index: {e}")
+
+        print(f"📁 Built index: {len(blur_index)} clean stems, {len(blur_files)} blur files")
+        return blur_index
+
+    def _calculate_dir_hash(self, file_list: list) -> str:
+        """计算目录内容的哈希值"""
+        # 使用文件名和修改时间来生成哈希
+        content_str = ""
+        for file_path in file_list:
+            try:
+                mtime = file_path.stat().st_mtime
+                content_str += f"{file_path.name}:{mtime}:"
+            except OSError:
+                content_str += f"{file_path.name}:0:"
+
+        return hashlib.md5(content_str.encode()).hexdigest()
 
     def __len__(self):
         return len(self.image_pairs)
