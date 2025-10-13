@@ -25,11 +25,11 @@ class ConditionalDiffusionModel(nn.Module):
             out_channels=out_channels,
             block_out_channels=block_out_channels,
             layers_per_block=layers_per_block,
-            cross_attention_dim=None,  # No cross attention for image-to-image task
+            # Remove cross_attention_dim parameter for compatibility
             attention_head_dim=8,  # Use attention_head_dim instead of encoder_hid_dim
             use_linear_projection=True,  # Better performance for high-res images
-            time_embedding_type="positional",  # Standard time embedding
-            projection_class_embeddings_input_dim=None  # No class embeddings needed
+            time_embedding_type="positional"  # Standard time embedding
+            # Remove projection_class_embeddings_input_dim for compatibility
         )
 
         self.scheduler = DDPMScheduler(
