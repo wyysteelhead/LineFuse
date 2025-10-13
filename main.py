@@ -817,7 +817,8 @@ def train_model(dataset_path: str, model_type: str = "unet",
         from src.models.unet_baseline import UNetBaseline
         from src.models.trainer import (
             ModelTrainer, DeblurDataset, get_default_transforms,
-            create_loss_function, create_optimizer, create_scheduler
+            create_loss_function, create_optimizer, create_scheduler,
+            diagnose_gpu_performance
         )
 
         # 创建数据集
@@ -827,10 +828,34 @@ def train_model(dataset_path: str, model_type: str = "unet",
         train_dataset = DeblurDataset(str(train_clean), str(train_blur), transform=transforms)
         val_dataset = DeblurDataset(str(val_clean), str(val_blur), transform=transforms)
 
-        train_loader = DataLoader(train_dataset, batch_size=batch_size,
-                                shuffle=True, num_workers=4, pin_memory=True)
-        val_loader = DataLoader(val_dataset, batch_size=batch_size,
-                              shuffle=False, num_workers=4, pin_memory=True)
+        # Optimize DataLoader configuration for GPU efficiency
+        # Determine optimal num_workers based on CPU cores and GPU capability
+        import os
+        num_workers = min(8, os.cpu_count() or 4)  # Cap at 8 to avoid overhead
+
+        # Use persistent_workers for better performance with multiple workers
+        persistent_workers = num_workers > 0
+
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            pin_memory=True,
+            persistent_workers=persistent_workers,
+            prefetch_factor=2 if num_workers > 0 else 2,  # Prefetch 2 batches per worker
+            drop_last=True  # Ensure consistent batch sizes for mixed precision
+        )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=num_workers,
+            pin_memory=True,
+            persistent_workers=persistent_workers,
+            prefetch_factor=2 if num_workers > 0 else 2,
+            drop_last=False
+        )
 
         print(f"训练集: {len(train_dataset)} 图像对")
         print(f"验证集: {len(val_dataset)} 图像对")
@@ -875,6 +900,10 @@ def train_model(dataset_path: str, model_type: str = "unet",
 
         print(f"开始训练...")
         print(f"模型将保存到: {save_dir.absolute()}")
+
+        # GPU性能诊断
+        print("\n🔍 运行GPU性能诊断...")
+        diagnose_gpu_performance(model, batch_size, device)
 
         # 开始训练
         results = trainer.train(

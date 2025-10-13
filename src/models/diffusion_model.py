@@ -4,114 +4,7 @@ import torch.nn.functional as F
 from typing import Optional, Tuple, Dict, Any
 import math
 
-try:
-    from diffusers import UNet2DConditionModel, DDPMScheduler
-    DIFFUSERS_AVAILABLE = True
-except ImportError:
-    DIFFUSERS_AVAILABLE = False
-    print("⚠️  diffusers库未安装，将使用简化版扩散模型")
-    print("完整功能请运行: pip install diffusers")
-
-class SimpleDDPMScheduler:
-    """Simplified DDPM scheduler when diffusers is not available"""
-
-    def __init__(self, num_train_timesteps: int = 1000, beta_start: float = 0.0001, beta_end: float = 0.02):
-        self.num_train_timesteps = num_train_timesteps
-
-        # Linear beta schedule
-        self.betas = torch.linspace(beta_start, beta_end, num_train_timesteps)
-        self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = torch.cumprod(self.alphas, dim=0)
-
-    def add_noise(self, original_samples: torch.Tensor, noise: torch.Tensor, timesteps: torch.Tensor):
-        """Add noise to samples according to the noise schedule"""
-        alphas_cumprod = self.alphas_cumprod.to(timesteps.device)
-        sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
-        sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
-
-        # Reshape for broadcasting
-        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
-        while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
-            sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
-
-        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
-        while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
-            sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
-
-        noisy_samples = sqrt_alpha_prod * original_samples + sqrt_one_minus_alpha_prod * noise
-        return noisy_samples
-
-    def set_timesteps(self, num_inference_steps: int, device: torch.device):
-        """Set the timesteps used for sampling"""
-        step_ratio = self.num_train_timesteps // num_inference_steps
-        timesteps = (torch.arange(0, num_inference_steps) * step_ratio).round().long()
-        self.timesteps = torch.flip(timesteps, [0]).to(device)
-
-
-class SimpleUNet(nn.Module):
-    """Simplified U-Net for diffusion when diffusers is not available"""
-
-    def __init__(self, in_channels: int = 6, out_channels: int = 3, base_channels: int = 64):
-        super().__init__()
-
-        # Time embedding
-        self.time_embed = nn.Sequential(
-            nn.Linear(128, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512)
-        )
-
-        # Encoder
-        self.enc1 = nn.Conv2d(in_channels, base_channels, 3, padding=1)
-        self.enc2 = nn.Conv2d(base_channels + 512 // (64 * 64), base_channels * 2, 3, padding=1, stride=2)
-        self.enc3 = nn.Conv2d(base_channels * 2, base_channels * 4, 3, padding=1, stride=2)
-        self.enc4 = nn.Conv2d(base_channels * 4, base_channels * 8, 3, padding=1, stride=2)
-
-        # Middle
-        self.mid = nn.Conv2d(base_channels * 8, base_channels * 8, 3, padding=1)
-
-        # Decoder
-        self.dec4 = nn.ConvTranspose2d(base_channels * 8, base_channels * 4, 4, stride=2, padding=1)
-        self.dec3 = nn.ConvTranspose2d(base_channels * 8, base_channels * 2, 4, stride=2, padding=1)
-        self.dec2 = nn.ConvTranspose2d(base_channels * 4, base_channels, 4, stride=2, padding=1)
-        self.dec1 = nn.Conv2d(base_channels * 2, out_channels, 3, padding=1)
-
-    def positional_encoding(self, timesteps: torch.Tensor) -> torch.Tensor:
-        """Generate positional encoding for timesteps"""
-        half_dim = 64
-        emb = math.log(10000) / (half_dim - 1)
-        emb = torch.exp(torch.arange(half_dim, device=timesteps.device) * -emb)
-        emb = timesteps[:, None] * emb[None, :]
-        emb = torch.cat([torch.sin(emb), torch.cos(emb)], dim=1)
-        return emb
-
-    def forward(self, x: torch.Tensor, timesteps: torch.Tensor, **kwargs):
-        # Time embedding
-        t_emb = self.positional_encoding(timesteps)
-        t_emb = self.time_embed(t_emb)
-
-        # Encoder
-        e1 = F.relu(self.enc1(x))
-
-        # Add time embedding (simplified approach)
-        t_spatial = t_emb.view(t_emb.shape[0], -1, 1, 1).expand(-1, -1, e1.shape[2], e1.shape[3])
-        e1_with_time = torch.cat([e1, t_spatial[:, :e1.shape[2]*e1.shape[3]//64//64, :, :]], dim=1)
-
-        e2 = F.relu(self.enc2(e1_with_time))
-        e3 = F.relu(self.enc3(e2))
-        e4 = F.relu(self.enc4(e3))
-
-        # Middle
-        m = F.relu(self.mid(e4))
-
-        # Decoder with skip connections
-        d4 = F.relu(self.dec4(m))
-        d3 = F.relu(self.dec3(torch.cat([d4, e3], dim=1)))
-        d2 = F.relu(self.dec2(torch.cat([d3, e2], dim=1)))
-        d1 = self.dec1(torch.cat([d2, e1], dim=1))
-
-        return (d1,)  # Return as tuple to match diffusers interface
-
+from diffusers import UNet2DConditionModel, DDPMScheduler
 
 class ConditionalDiffusionModel(nn.Module):
     """Conditional Diffusion Model for image deblurring"""
@@ -126,25 +19,24 @@ class ConditionalDiffusionModel(nn.Module):
 
         super(ConditionalDiffusionModel, self).__init__()
 
-        if DIFFUSERS_AVAILABLE:
-            self.unet = UNet2DConditionModel(
-                sample_size=sample_size,
-                in_channels=in_channels + 3,  # +3 for conditioning image
-                out_channels=out_channels,
-                block_out_channels=block_out_channels,
-                layers_per_block=layers_per_block,
-                cross_attention_dim=768,
-                encoder_hid_dim=8
-            )
+        self.unet = UNet2DConditionModel(
+            sample_size=sample_size,
+            in_channels=in_channels + 3,  # +3 for conditioning image
+            out_channels=out_channels,
+            block_out_channels=block_out_channels,
+            layers_per_block=layers_per_block,
+            cross_attention_dim=None,  # No cross attention for image-to-image task
+            attention_head_dim=8,  # Use attention_head_dim instead of encoder_hid_dim
+            use_linear_projection=True,  # Better performance for high-res images
+            time_embedding_type="positional",  # Standard time embedding
+            projection_class_embeddings_input_dim=None  # No class embeddings needed
+        )
 
-            self.scheduler = DDPMScheduler(
-                num_train_timesteps=num_train_timesteps,
-                beta_schedule="linear",
-                prediction_type="epsilon"
-            )
-        else:
-            self.unet = SimpleUNet(in_channels=in_channels + 3, out_channels=out_channels)
-            self.scheduler = SimpleDDPMScheduler(num_train_timesteps=num_train_timesteps)
+        self.scheduler = DDPMScheduler(
+            num_train_timesteps=num_train_timesteps,
+            beta_schedule="linear",
+            prediction_type="epsilon"
+        )
 
         self.num_train_timesteps = num_train_timesteps
         self.sample_size = sample_size
@@ -171,7 +63,6 @@ class ConditionalDiffusionModel(nn.Module):
         noise_pred = self.unet(
             model_input,
             timesteps,
-            encoder_hidden_states=None,  # 图像条件任务不需要文本编码
             return_dict=False
         )[0]
         
@@ -201,7 +92,6 @@ class ConditionalDiffusionModel(nn.Module):
                 noise_pred = self.unet(
                     model_input,
                     timestep_batch,
-                    encoder_hidden_states=None,  # 图像条件任务不需要文本编码
                     return_dict=False
                 )[0]
             
@@ -221,7 +111,6 @@ class ConditionalDiffusionModel(nn.Module):
             'name': 'ConditionalDiffusion',
             'sample_size': self.sample_size,
             'num_train_timesteps': self.num_train_timesteps,
-            'diffusers_available': DIFFUSERS_AVAILABLE,
             'total_params': self.get_model_size(),
             'trainable_params': sum(p.numel() for p in self.parameters() if p.requires_grad)
         }

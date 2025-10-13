@@ -12,6 +12,57 @@ from PIL import Image
 import torchvision.transforms as transforms
 from sklearn.metrics import mean_squared_error
 import cv2
+import time
+
+def monitor_gpu_usage() -> Dict[str, Any]:
+    """Monitor GPU memory usage and utilization"""
+    if not torch.cuda.is_available():
+        return {"gpu_available": False}
+
+    try:
+        # Get GPU memory info
+        memory_allocated = torch.cuda.memory_allocated() / 1024**3  # GB
+        memory_reserved = torch.cuda.memory_reserved() / 1024**3   # GB
+        memory_total = torch.cuda.get_device_properties(0).total_memory / 1024**3  # GB
+
+        # Try to get GPU utilization if nvidia-ml-py is available
+        try:
+            import pynvml
+            pynvml.nvmlInit()
+            handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+            utilization = pynvml.nvmlDeviceGetUtilizationRates(handle)
+            gpu_util = utilization.gpu
+            memory_util = utilization.memory
+        except ImportError:
+            gpu_util = memory_util = -1  # Not available
+
+        return {
+            "gpu_available": True,
+            "memory_allocated_gb": memory_allocated,
+            "memory_reserved_gb": memory_reserved,
+            "memory_total_gb": memory_total,
+            "memory_usage_percent": (memory_allocated / memory_total) * 100,
+            "gpu_utilization_percent": gpu_util,
+            "memory_utilization_percent": memory_util
+        }
+    except Exception as e:
+        return {"gpu_available": True, "error": str(e)}
+
+
+def log_gpu_info(prefix: str = ""):
+    """Log GPU information for debugging"""
+    gpu_info = monitor_gpu_usage()
+    if gpu_info.get("gpu_available", False):
+        if "error" not in gpu_info:
+            logging.info(f"{prefix}GPU Memory: {gpu_info['memory_allocated_gb']:.2f}GB/{gpu_info['memory_total_gb']:.2f}GB "
+                        f"({gpu_info['memory_usage_percent']:.1f}%)")
+            if gpu_info['gpu_utilization_percent'] >= 0:
+                logging.info(f"{prefix}GPU Utilization: {gpu_info['gpu_utilization_percent']}%")
+        else:
+            logging.warning(f"{prefix}GPU monitoring error: {gpu_info['error']}")
+    else:
+        logging.warning(f"{prefix}GPU not available")
+
 
 class DeblurDataset(Dataset):
     """Dataset class for loading deblurring image pairs"""
@@ -234,9 +285,18 @@ class ModelTrainer:
                 batch_psnr = calculate_psnr(pred_01, clean_01)
 
                 # Calculate SSIM for first image in batch (to save time)
-                pred_np = pred_01[0].cpu().numpy().transpose(1, 2, 0)
-                clean_np = clean_01[0].cpu().numpy().transpose(1, 2, 0)
-                batch_ssim = calculate_ssim(pred_np, clean_np)
+                # Use GPU-optimized SSIM calculation to avoid CPU transfer bottleneck
+                try:
+                    # Try to use GPU-based SSIM if available
+                    from torchmetrics import StructuralSimilarityIndexMeasure
+                    if not hasattr(self, '_ssim_metric'):
+                        self._ssim_metric = StructuralSimilarityIndexMeasure(data_range=1.0).to(self.device)
+                    batch_ssim = self._ssim_metric(pred_01[:1], clean_01[:1]).item()
+                except ImportError:
+                    # Fallback to CPU-based SSIM but minimize transfers
+                    pred_np = pred_01[0].cpu().numpy().transpose(1, 2, 0)
+                    clean_np = clean_01[0].cpu().numpy().transpose(1, 2, 0)
+                    batch_ssim = calculate_ssim(pred_np, clean_np)
 
                 total_loss += loss.item()
                 total_psnr += batch_psnr
@@ -282,6 +342,14 @@ class ModelTrainer:
         logging.info(f"Model: {self.model.__class__.__name__}")
         logging.info(f"Device: {self.device}")
 
+        # Initial GPU monitoring
+        log_gpu_info("Initial ")
+
+        # Check if GPU utilization monitoring is available
+        gpu_info = monitor_gpu_usage()
+        if gpu_info.get("gpu_utilization_percent", -1) < 0:
+            logging.warning("GPU utilization monitoring not available. Install nvidia-ml-py for detailed monitoring: pip install nvidia-ml-py")
+
         for epoch in range(num_epochs):
             epoch_start_time = torch.cuda.Event(enable_timing=True)
             epoch_end_time = torch.cuda.Event(enable_timing=True)
@@ -289,6 +357,9 @@ class ModelTrainer:
 
             print(f"\nEpoch {epoch + 1}/{num_epochs}")
             print("-" * 50)
+
+            # Log GPU status at epoch start
+            log_gpu_info(f"Epoch {epoch + 1} start - ")
 
             # Training
             train_metrics = self.train_epoch(train_loader)
@@ -346,7 +417,7 @@ class ModelTrainer:
         logging.info(f"Best validation PSNR: {best_val_psnr:.2f}dB")
 
         return final_results
-    
+
     def save_checkpoint(self, filepath: Path, epoch: int,
                        val_metrics: Dict[str, float], is_best: bool = False) -> None:
         """Save model checkpoint with complete training state"""
@@ -448,3 +519,84 @@ def create_scheduler(optimizer: optim.Optimizer, scheduler_type: str = 'cosine',
         return None
     else:
         raise ValueError(f"Unknown scheduler type: {scheduler_type}")
+
+
+def diagnose_gpu_performance(model: nn.Module, sample_batch_size: int = 4, device: str = 'cuda') -> None:
+    """Diagnose potential GPU performance issues"""
+    if not torch.cuda.is_available():
+        print("❌ CUDA not available")
+        return
+
+    print("\n" + "="*50)
+    print("🔍 GPU PERFORMANCE DIAGNOSIS")
+    print("="*50)
+
+    # Check device and memory
+    gpu_info = monitor_gpu_usage()
+    print(f"📊 GPU Info:")
+    print(f"  - Total Memory: {gpu_info.get('memory_total_gb', 'Unknown'):.2f} GB")
+    print(f"  - Current Usage: {gpu_info.get('memory_allocated_gb', 0):.2f} GB ({gpu_info.get('memory_usage_percent', 0):.1f}%)")
+
+    # Test model forward pass
+    model.eval()
+    print(f"\n🧪 Testing model forward pass (batch_size={sample_batch_size})...")
+
+    try:
+        # Create dummy inputs
+        if hasattr(model, 'scheduler') and hasattr(model, 'unet'):
+            # Diffusion model
+            clean_dummy = torch.randn(sample_batch_size, 3, 512, 512, device=device)
+            blur_dummy = torch.randn(sample_batch_size, 3, 512, 512, device=device)
+
+            start_time = time.time()
+            torch.cuda.synchronize()
+
+            with torch.no_grad():
+                _ = model(clean_dummy, blur_dummy)
+
+            torch.cuda.synchronize()
+            forward_time = time.time() - start_time
+
+            print(f"  ✅ Forward pass successful: {forward_time:.3f}s")
+
+            # Test inference
+            print(f"🔄 Testing inference (5 denoising steps)...")
+            start_time = time.time()
+            torch.cuda.synchronize()
+
+            with torch.no_grad():
+                _ = model.inference(blur_dummy, num_inference_steps=5)
+
+            torch.cuda.synchronize()
+            inference_time = time.time() - start_time
+
+            print(f"  ✅ Inference successful: {inference_time:.3f}s")
+
+        else:
+            # Regular model
+            dummy_input = torch.randn(sample_batch_size, 3, 512, 512, device=device)
+
+            start_time = time.time()
+            torch.cuda.synchronize()
+
+            with torch.no_grad():
+                _ = model(dummy_input)
+
+            torch.cuda.synchronize()
+            forward_time = time.time() - start_time
+
+            print(f"  ✅ Forward pass successful: {forward_time:.3f}s")
+
+        # Check GPU memory after test
+        gpu_info_after = monitor_gpu_usage()
+        print(f"  📈 GPU Memory after test: {gpu_info_after.get('memory_allocated_gb', 0):.2f} GB")
+
+    except Exception as e:
+        print(f"  ❌ Error during testing: {e}")
+
+    print("\n💡 Performance Tips:")
+    print("  - Ensure batch_size fully utilizes GPU memory")
+    print("  - Use mixed precision (amp) for better performance")
+    print("  - Monitor nvidia-smi during training for real-time GPU usage")
+    print("  - Consider using pin_memory=True in DataLoader")
+    print("="*50)
