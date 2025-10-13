@@ -891,7 +891,8 @@ def train_model(dataset_path: str, model_type: str = "unet",
             optimizer=optimizer,
             scheduler=scheduler,
             device=device,
-            mixed_precision=True
+            mixed_precision=True,
+            use_multi_gpu=True  # 🚀 启用多GPU训练
         )
 
         # 设置保存目录

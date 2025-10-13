@@ -212,24 +212,35 @@ def calculate_ssim(img1: np.ndarray, img2: np.ndarray) -> float:
 
 
 class ModelTrainer:
-    def __init__(self, 
+    def __init__(self,
                  model: nn.Module,
                  loss_fn: nn.Module,
                  optimizer: optim.Optimizer,
                  scheduler: Optional[optim.lr_scheduler._LRScheduler] = None,
                  device: str = 'cuda',
-                 mixed_precision: bool = True):
-        
-        self.model = model.to(device)
+                 mixed_precision: bool = True,
+                 use_multi_gpu: bool = True):  # 🆕 多GPU支持参数
+
+        self.device = device
+        self.use_multi_gpu = use_multi_gpu
+
+        # 🚀 多GPU支持：自动检测并使用可用GPU
+        if use_multi_gpu and torch.cuda.device_count() > 1:
+            print(f"🚀 Using {torch.cuda.device_count()} GPUs for training!")
+            self.model = nn.DataParallel(model).to(device)
+            self.is_multi_gpu = True
+        else:
+            self.model = model.to(device)
+            self.is_multi_gpu = False
+
         self.loss_fn = loss_fn
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.device = device
         self.mixed_precision = mixed_precision
-        
+
         if mixed_precision:
             self.scaler = torch.cuda.amp.GradScaler()
-        
+
         self.train_losses = []
         self.val_losses = []
         
@@ -496,15 +507,24 @@ class ModelTrainer:
                        val_metrics: Dict[str, float], is_best: bool = False) -> None:
         """Save model checkpoint with complete training state"""
 
+        # 🚀 多GPU兼容性：保存原始模型权重而非DataParallel包装的权重
+        if self.is_multi_gpu:
+            model_state_dict = self.model.module.state_dict()
+            model_info = self.model.module.get_model_info() if hasattr(self.model.module, 'get_model_info') else {}
+        else:
+            model_state_dict = self.model.state_dict()
+            model_info = self.model.get_model_info() if hasattr(self.model, 'get_model_info') else {}
+
         checkpoint = {
             'epoch': epoch,
-            'model_state_dict': self.model.state_dict(),
+            'model_state_dict': model_state_dict,
             'optimizer_state_dict': self.optimizer.state_dict(),
             'val_metrics': val_metrics,
             'train_losses': self.train_losses,
             'val_losses': self.val_losses,
             'is_best': is_best,
-            'model_info': self.model.get_model_info() if hasattr(self.model, 'get_model_info') else {}
+            'model_info': model_info,
+            'is_multi_gpu': self.is_multi_gpu  # 记录是否使用多GPU训练
         }
 
         if self.scheduler:
