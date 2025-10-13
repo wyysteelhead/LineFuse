@@ -25,9 +25,7 @@ class ConditionalDiffusionModel(nn.Module):
             out_channels=out_channels,
             block_out_channels=block_out_channels,
             layers_per_block=layers_per_block,
-            attention_head_dim=8,  # Use attention_head_dim for self-attention
-            use_linear_projection=True,  # Better performance for high-res images
-            time_embedding_type="positional"  # Standard time embedding
+            attention_head_dim=8  # Use attention_head_dim for self-attention
         )
 
         self.scheduler = DDPMScheduler(
