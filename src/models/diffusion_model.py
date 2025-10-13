@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from typing import Optional, Tuple, Dict, Any
 import math
 
-from diffusers import UNet2DConditionModel, DDPMScheduler
+from diffusers import UNet2DModel, DDPMScheduler
 
 class ConditionalDiffusionModel(nn.Module):
     """Conditional Diffusion Model for image deblurring"""
@@ -19,17 +19,15 @@ class ConditionalDiffusionModel(nn.Module):
 
         super(ConditionalDiffusionModel, self).__init__()
 
-        self.unet = UNet2DConditionModel(
+        self.unet = UNet2DModel(
             sample_size=sample_size,
             in_channels=in_channels + 3,  # +3 for conditioning image
             out_channels=out_channels,
             block_out_channels=block_out_channels,
             layers_per_block=layers_per_block,
-            # Remove cross_attention_dim parameter for compatibility
-            attention_head_dim=8,  # Use attention_head_dim instead of encoder_hid_dim
+            attention_head_dim=8,  # Use attention_head_dim for self-attention
             use_linear_projection=True,  # Better performance for high-res images
             time_embedding_type="positional"  # Standard time embedding
-            # Remove projection_class_embeddings_input_dim for compatibility
         )
 
         self.scheduler = DDPMScheduler(
@@ -63,7 +61,6 @@ class ConditionalDiffusionModel(nn.Module):
         noise_pred = self.unet(
             model_input,
             timesteps,
-            encoder_hidden_states=None,
             return_dict=False
         )[0]
         
@@ -93,7 +90,6 @@ class ConditionalDiffusionModel(nn.Module):
                 noise_pred = self.unet(
                     model_input,
                     timestep_batch,
-                    encoder_hidden_states=None,
                     return_dict=False
                 )[0]
             
