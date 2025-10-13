@@ -175,7 +175,7 @@ class ModelTrainer:
             self.optimizer.zero_grad()
 
             if self.mixed_precision:
-                with torch.cuda.amp.autocast():
+                with torch.amp.autocast('cuda'):
                     # 检查是否是扩散模型
                     if hasattr(self.model, 'scheduler') and hasattr(self.model, 'unet'):
                         # 扩散模型：返回(predicted_noise, target_noise)

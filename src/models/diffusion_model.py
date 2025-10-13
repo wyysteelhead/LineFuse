@@ -63,6 +63,7 @@ class ConditionalDiffusionModel(nn.Module):
         noise_pred = self.unet(
             model_input,
             timesteps,
+            encoder_hidden_states=None,
             return_dict=False
         )[0]
         
@@ -92,6 +93,7 @@ class ConditionalDiffusionModel(nn.Module):
                 noise_pred = self.unet(
                     model_input,
                     timestep_batch,
+                    encoder_hidden_states=None,
                     return_dict=False
                 )[0]
             
