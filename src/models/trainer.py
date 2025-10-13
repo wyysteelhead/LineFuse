@@ -75,16 +75,31 @@ class DeblurDataset(Dataset):
         # Get all clean images
         self.clean_files = sorted(list(self.clean_dir.glob("*.png")))
 
+        # 🚀 性能优化：预建索引而不是逐个搜索
+        print("Building dataset index...")
+
+        # 一次性获取所有blur文件并建立索引
+        all_blur_files = list(self.blur_dir.glob("*.png"))
+        blur_index = {}  # clean_stem -> [blur_files]
+
+        for blur_file in all_blur_files:
+            # 从blur文件名中提取对应的clean文件名
+            # 假设格式: spectrum_X_difficulty_effect.png -> spectrum_X
+            parts = blur_file.stem.split('_')
+            if len(parts) >= 2:
+                clean_stem = '_'.join(parts[:2])  # spectrum_X
+                if clean_stem not in blur_index:
+                    blur_index[clean_stem] = []
+                blur_index[clean_stem].append(blur_file)
+
         # Match clean images with corresponding blur images
         self.image_pairs = []
         for clean_file in self.clean_files:
-            # Find all blur images that correspond to this clean image
-            blur_pattern = f"{clean_file.stem}_*.png"
-            blur_files = list(self.blur_dir.glob(blur_pattern))
-
-            # Add all pairs for this clean image
-            for blur_file in blur_files:
-                self.image_pairs.append((clean_file, blur_file))
+            clean_stem = clean_file.stem
+            if clean_stem in blur_index:
+                # Add all pairs for this clean image
+                for blur_file in blur_index[clean_stem]:
+                    self.image_pairs.append((clean_file, blur_file))
 
         print(f"Found {len(self.image_pairs)} image pairs")
 
