@@ -25,6 +25,16 @@ model:
     num_train_timesteps: 1000
     beta_schedule: "linear"
     prediction_type: "epsilon"
+    scheduler: "ddim"
+    use_lora: true
+    lora:
+      rank: 16
+      alpha: 32.0
+      dropout: 0.1
+      module_filters:
+        - "mid_block"
+        - "up_blocks.2"
+        - "up_blocks.3"
 
 training:
   batch_size: 16
@@ -33,6 +43,10 @@ training:
   save_every: 10
   gradient_accumulation_steps: 1
   mixed_precision: true
+  precision: "float16"  # float16 / bfloat16 / fp32
+  max_grad_norm: 1.0
+  hybrid_unfreeze: "50:mid_block,80:up_blocks.2|up_blocks.3"
+  validation_inference_steps: 20
   
   optimizer:
     type: "adamw"
@@ -81,3 +95,4 @@ logging:
   level: "INFO"
   save_logs: true
   log_interval: 100
+  metrics_json: "logs/training_metrics.jsonl"

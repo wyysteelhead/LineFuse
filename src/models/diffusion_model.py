@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from typing import Optional, Tuple, Dict, Any
 import math
 
-from diffusers import UNet2DModel, DDPMScheduler
+from diffusers import UNet2DModel, DDPMScheduler, DDIMScheduler
 
 class ConditionalDiffusionModel(nn.Module):
     """Conditional Diffusion Model for image deblurring"""
@@ -15,7 +15,8 @@ class ConditionalDiffusionModel(nn.Module):
                  sample_size: int = 512,
                  block_out_channels: Tuple[int, ...] = (128, 256, 512, 1024),
                  layers_per_block: int = 2,
-                 num_train_timesteps: int = 1000):
+                 num_train_timesteps: int = 1000,
+                 scheduler_type: str = "ddpm"):
 
         super(ConditionalDiffusionModel, self).__init__()
 
@@ -28,14 +29,24 @@ class ConditionalDiffusionModel(nn.Module):
             attention_head_dim=8  # Use attention_head_dim for self-attention
         )
 
-        self.scheduler = DDPMScheduler(
-            num_train_timesteps=num_train_timesteps,
-            beta_schedule="linear",
-            prediction_type="epsilon"
-        )
+        scheduler_type = scheduler_type.lower()
+        if scheduler_type == "ddim":
+            self.scheduler = DDIMScheduler(
+                num_train_timesteps=num_train_timesteps,
+                beta_schedule="scaled_linear",
+                clip_sample=False,
+                set_alpha_to_one=False
+            )
+        else:
+            self.scheduler = DDPMScheduler(
+                num_train_timesteps=num_train_timesteps,
+                beta_schedule="linear",
+                prediction_type="epsilon"
+            )
 
         self.num_train_timesteps = num_train_timesteps
         self.sample_size = sample_size
+        self.scheduler_type = scheduler_type
         
     def forward(self, 
                 clean_images: torch.Tensor,
@@ -107,6 +118,7 @@ class ConditionalDiffusionModel(nn.Module):
             'name': 'ConditionalDiffusion',
             'sample_size': self.sample_size,
             'num_train_timesteps': self.num_train_timesteps,
+            'scheduler_type': self.scheduler_type,
             'total_params': self.get_model_size(),
             'trainable_params': sum(p.numel() for p in self.parameters() if p.requires_grad)
         }

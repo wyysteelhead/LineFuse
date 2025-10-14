@@ -4,7 +4,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, Callable, TYPE_CHECKING, Union
 import numpy as np
 from tqdm import tqdm
 import os
@@ -15,6 +15,10 @@ import cv2
 import time
 import json
 import hashlib
+from contextlib import nullcontext
+
+if TYPE_CHECKING:
+    from .lora_adapter import HybridLoRAStrategy
 
 def monitor_gpu_usage() -> Dict[str, Any]:
     """Monitor GPU memory usage and utilization"""
@@ -217,20 +221,34 @@ class ModelTrainer:
                  loss_fn: nn.Module,
                  optimizer: optim.Optimizer,
                  scheduler: Optional[optim.lr_scheduler._LRScheduler] = None,
-                 device: str = 'cuda',
+                 device: Union[str, torch.device] = 'cuda',
                  mixed_precision: bool = True,
-                 use_multi_gpu: bool = True):  # 🆕 多GPU支持参数
+                 precision_dtype: str = 'float16',  # 🆕 'float16' or 'bfloat16'
+                 use_multi_gpu: bool = True,
+                 gradient_accumulation_steps: int = 1,  # 🆕 梯度累积步数
+                 max_grad_norm: float = 1.0,  # 🆕 梯度裁剪阈值
+                 hybrid_lora_strategy: Optional["HybridLoRAStrategy"] = None,
+                 metrics_logger: Optional[Callable[[Dict[str, Any]], None]] = None,
+                 validation_inference_steps: int = 20):
 
-        self.device = device
+        if gradient_accumulation_steps < 1:
+            raise ValueError("gradient_accumulation_steps must be >= 1")
+
+        self.device = device if isinstance(device, torch.device) else torch.device(device)
         self.use_multi_gpu = use_multi_gpu
+        self.gradient_accumulation_steps = gradient_accumulation_steps
+        self.max_grad_norm = max_grad_norm if max_grad_norm and max_grad_norm > 0 else None
+        self.hybrid_lora_strategy = hybrid_lora_strategy
+        self.metrics_logger = metrics_logger
+        self.validation_inference_steps = validation_inference_steps
 
         # 🚀 多GPU支持：自动检测并使用可用GPU
-        if use_multi_gpu and torch.cuda.device_count() > 1:
+        if use_multi_gpu and torch.cuda.is_available() and torch.cuda.device_count() > 1:
             print(f"🚀 Using {torch.cuda.device_count()} GPUs for training!")
-            self.model = nn.DataParallel(model).to(device)
+            self.model = nn.DataParallel(model).to(self.device)
             self.is_multi_gpu = True
         else:
-            self.model = model.to(device)
+            self.model = model.to(self.device)
             self.is_multi_gpu = False
 
         self.loss_fn = loss_fn
@@ -238,76 +256,113 @@ class ModelTrainer:
         self.scheduler = scheduler
         self.mixed_precision = mixed_precision
 
+        # 🆕 Enhanced mixed precision support with bfloat16
         if mixed_precision:
-            self.scaler = torch.cuda.amp.GradScaler()
+            # Determine precision dtype
+            if precision_dtype.lower() == 'bfloat16':
+                if not torch.cuda.is_bf16_supported():
+                    print("⚠️ bfloat16 not supported on this GPU, falling back to float16")
+                    self.precision_dtype = torch.float16
+                else:
+                    self.precision_dtype = torch.bfloat16
+                    print("✅ Using bfloat16 mixed precision")
+            else:
+                self.precision_dtype = torch.float16
+                print("✅ Using float16 mixed precision")
+
+            self.scaler = torch.cuda.amp.GradScaler(enabled=(self.precision_dtype == torch.float16))
+        else:
+            self.precision_dtype = torch.float32
+            self.scaler = None
 
         self.train_losses = []
         self.val_losses = []
+
+    def _get_base_model(self) -> nn.Module:
+        """Return the underlying model (unwrapped from DataParallel if needed)."""
+        return self.model.module if getattr(self, "is_multi_gpu", False) else self.model
+
+    def _autocast(self):
+        """Return appropriate autocast context manager based on precision settings."""
+        device_str = str(self.device)
+        if not self.mixed_precision or 'cuda' not in device_str:
+            return nullcontext()
+        return torch.autocast(device_type='cuda', dtype=self.precision_dtype)
+
+    def _apply_hybrid_strategy(self, epoch_idx: int) -> None:
+        """Apply Hybrid LoRA strategy unfreezing logic when configured."""
+        if not self.hybrid_lora_strategy:
+            return
+        base_model = self._get_base_model()
+        self.hybrid_lora_strategy.update_frozen_layers(base_model, epoch_idx)
         
     def train_epoch(self, train_loader: DataLoader) -> Dict[str, float]:
         """Train model for one epoch"""
         self.model.train()
         total_loss = 0.0
         total_psnr = 0.0
-        num_batches = len(train_loader)
+        num_batches = max(1, len(train_loader))
+
+        base_model = self._get_base_model()
+        is_diffusion_model = hasattr(base_model, 'scheduler') and hasattr(base_model, 'unet')
 
         progress_bar = tqdm(train_loader, desc="Training", leave=False)
+        self.optimizer.zero_grad(set_to_none=True)
 
         for batch_idx, (clean_images, blur_images) in enumerate(progress_bar):
-            clean_images = clean_images.to(self.device)
-            blur_images = blur_images.to(self.device)
+            clean_images = clean_images.to(self.device, non_blocking=True)
+            blur_images = blur_images.to(self.device, non_blocking=True)
 
-            self.optimizer.zero_grad()
-
-            if self.mixed_precision:
-                with torch.amp.autocast('cuda'):
-                    # 检查是否是扩散模型
-                    if hasattr(self.model, 'scheduler') and hasattr(self.model, 'unet'):
-                        # 扩散模型：返回(predicted_noise, target_noise)
-                        noise_pred, noise_target = self.model(clean_images, blur_images)
-                        loss = self.loss_fn(noise_pred, noise_target)
-                    else:
-                        # 普通模型：返回预测图像
-                        outputs = self.model(blur_images)
-                        loss = self.loss_fn(outputs, clean_images)
-
-                self.scaler.scale(loss).backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
-            else:
-                # 检查是否是扩散模型
-                if hasattr(self.model, 'scheduler') and hasattr(self.model, 'unet'):
-                    # 扩散模型：返回(predicted_noise, target_noise)
+            outputs = None
+            with self._autocast():
+                if is_diffusion_model:
                     noise_pred, noise_target = self.model(clean_images, blur_images)
                     loss = self.loss_fn(noise_pred, noise_target)
                 else:
-                    # 普通模型：返回预测图像
                     outputs = self.model(blur_images)
                     loss = self.loss_fn(outputs, clean_images)
 
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-                self.optimizer.step()
+            loss_value = loss.detach().item()
+            total_loss += loss_value
 
-            # Calculate PSNR for this batch
-            with torch.no_grad():
-                # 检查是否是扩散模型
-                if hasattr(self.model, 'scheduler') and hasattr(self.model, 'unet'):
-                    # 扩散模型训练时跳过PSNR计算（输出是噪声，不是图像）
-                    batch_psnr = 0.0  # 占位符，实际验证时会计算真正的PSNR
+            loss_to_backward = loss / max(1, self.gradient_accumulation_steps)
+
+            if self.mixed_precision:
+                self.scaler.scale(loss_to_backward).backward()
+            else:
+                loss_to_backward.backward()
+
+            should_step = (
+                (batch_idx + 1) % self.gradient_accumulation_steps == 0 or
+                (batch_idx + 1) == num_batches
+            )
+
+            if should_step:
+                if self.mixed_precision and self.max_grad_norm:
+                    self.scaler.unscale_(self.optimizer)
+                if self.max_grad_norm:
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.max_grad_norm)
+
+                if self.mixed_precision:
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
                 else:
-                    # 普通模型：计算预测图像的PSNR
-                    # Convert from [-1,1] to [0,1] for PSNR calculation
+                    self.optimizer.step()
+
+                self.optimizer.zero_grad(set_to_none=True)
+
+            with torch.no_grad():
+                if is_diffusion_model or outputs is None:
+                    batch_psnr = 0.0
+                else:
                     pred_01 = (outputs + 1) / 2
                     clean_01 = (clean_images + 1) / 2
                     batch_psnr = calculate_psnr(pred_01, clean_01)
 
-            total_loss += loss.item()
             total_psnr += batch_psnr
 
             progress_bar.set_postfix({
-                'Loss': f'{loss.item():.4f}',
+                'Loss': f'{loss_value:.4f}',
                 'PSNR': f'{batch_psnr:.2f}dB'
             })
 
@@ -327,68 +382,53 @@ class ModelTrainer:
         total_loss = 0.0
         total_psnr = 0.0
         total_ssim = 0.0
-        num_batches = len(val_loader)
+        num_batches = max(1, len(val_loader))
+
+        base_model = self._get_base_model()
+        is_diffusion_model = hasattr(base_model, 'scheduler') and hasattr(base_model, 'unet')
 
         progress_bar = tqdm(val_loader, desc="Validation", leave=False)
 
         with torch.no_grad():
             for clean_images, blur_images in progress_bar:
-                clean_images = clean_images.to(self.device)
-                blur_images = blur_images.to(self.device)
+                clean_images = clean_images.to(self.device, non_blocking=True)
+                blur_images = blur_images.to(self.device, non_blocking=True)
 
-                if self.mixed_precision:
-                    with torch.cuda.amp.autocast():
-                        # 检查是否是扩散模型
-                        if hasattr(self.model, 'scheduler') and hasattr(self.model, 'unet'):
-                            # 扩散模型：使用推理模式生成清晰图像
-                            outputs = self.model.inference(blur_images, num_inference_steps=20)
-                            # 计算噪声损失用于验证损失记录
-                            noise_pred, noise_target = self.model(clean_images, blur_images)
-                            loss = self.loss_fn(noise_pred, noise_target)
-                        else:
-                            # 普通模型：直接预测图像
-                            outputs = self.model(blur_images)
-                            loss = self.loss_fn(outputs, clean_images)
-                else:
-                    # 检查是否是扩散模型
-                    if hasattr(self.model, 'scheduler') and hasattr(self.model, 'unet'):
-                        # 扩散模型：使用推理模式生成清晰图像
-                        outputs = self.model.inference(blur_images, num_inference_steps=20)
-                        # 计算噪声损失用于验证损失记录
+                with self._autocast():
+                    if is_diffusion_model:
+                        outputs = self.model.inference(
+                            blur_images,
+                            num_inference_steps=self.validation_inference_steps
+                        )
                         noise_pred, noise_target = self.model(clean_images, blur_images)
                         loss = self.loss_fn(noise_pred, noise_target)
                     else:
-                        # 普通模型：直接预测图像
                         outputs = self.model(blur_images)
                         loss = self.loss_fn(outputs, clean_images)
 
-                # Convert from [-1,1] to [0,1] for metrics calculation
+                loss_value = loss.detach().item()
+
                 pred_01 = (outputs + 1) / 2
                 clean_01 = (clean_images + 1) / 2
 
-                # Calculate PSNR
                 batch_psnr = calculate_psnr(pred_01, clean_01)
 
-                # Calculate SSIM for first image in batch (to save time)
-                # Use GPU-optimized SSIM calculation to avoid CPU transfer bottleneck
                 try:
-                    # Try to use GPU-based SSIM if available
                     from torchmetrics import StructuralSimilarityIndexMeasure
                     if not hasattr(self, '_ssim_metric'):
                         self._ssim_metric = StructuralSimilarityIndexMeasure(data_range=1.0).to(self.device)
                     batch_ssim = self._ssim_metric(pred_01[:1], clean_01[:1]).item()
                 except ImportError:
-                    # Fallback to CPU-based SSIM but minimize transfers
                     pred_np = pred_01[0].cpu().numpy().transpose(1, 2, 0)
                     clean_np = clean_01[0].cpu().numpy().transpose(1, 2, 0)
                     batch_ssim = calculate_ssim(pred_np, clean_np)
 
-                total_loss += loss.item()
+                total_loss += loss_value
                 total_psnr += batch_psnr
                 total_ssim += batch_ssim
 
                 progress_bar.set_postfix({
-                    'Loss': f'{loss.item():.4f}',
+                    'Loss': f'{loss_value:.4f}',
                     'PSNR': f'{batch_psnr:.2f}dB',
                     'SSIM': f'{batch_ssim:.3f}'
                 })
@@ -420,7 +460,8 @@ class ModelTrainer:
         best_val_psnr = 0.0
         history = {
             'train_loss': [], 'train_psnr': [],
-            'val_loss': [], 'val_psnr': [], 'val_ssim': []
+            'val_loss': [], 'val_psnr': [], 'val_ssim': [],
+            'epoch_time': [], 'samples_per_second': []
         }
 
         logging.info(f"Starting training for {num_epochs} epochs")
@@ -435,16 +476,25 @@ class ModelTrainer:
         if gpu_info.get("gpu_utilization_percent", -1) < 0:
             logging.warning("GPU utilization monitoring not available. Install nvidia-ml-py for detailed monitoring: pip install nvidia-ml-py")
 
+        use_cuda_timing = torch.cuda.is_available() and 'cuda' in str(self.device)
+
         for epoch in range(num_epochs):
-            epoch_start_time = torch.cuda.Event(enable_timing=True)
-            epoch_end_time = torch.cuda.Event(enable_timing=True)
-            epoch_start_time.record()
+            if use_cuda_timing:
+                epoch_start_event = torch.cuda.Event(enable_timing=True)
+                epoch_end_event = torch.cuda.Event(enable_timing=True)
+                epoch_start_event.record()
+            else:
+                epoch_start_event = epoch_end_event = None
+                wall_time_start = time.time()
 
             print(f"\nEpoch {epoch + 1}/{num_epochs}")
             print("-" * 50)
 
             # Log GPU status at epoch start
             log_gpu_info(f"Epoch {epoch + 1} start - ")
+
+            # Update hybrid LoRA freezing schedule if configured
+            self._apply_hybrid_strategy(epoch + 1)
 
             # Training
             train_metrics = self.train_epoch(train_loader)
@@ -464,15 +514,43 @@ class ModelTrainer:
                 else:
                     self.scheduler.step()
 
-            epoch_end_time.record()
-            torch.cuda.synchronize()
-            epoch_time = epoch_start_time.elapsed_time(epoch_end_time) / 1000.0
+            if use_cuda_timing:
+                epoch_end_event.record()
+                torch.cuda.synchronize()
+                epoch_time = epoch_start_event.elapsed_time(epoch_end_event) / 1000.0
+            else:
+                epoch_time = time.time() - wall_time_start
 
-            # Logging
+            if hasattr(train_loader, 'dataset'):
+                try:
+                    epoch_samples = len(train_loader.dataset)
+                except TypeError:
+                    epoch_samples = max(1, getattr(train_loader, 'batch_size', 1)) * len(train_loader)
+            else:
+                epoch_samples = max(1, getattr(train_loader, 'batch_size', 1)) * len(train_loader)
+
+            samples_per_second = epoch_samples / epoch_time if epoch_time > 0 else 0.0
+
+            history['epoch_time'].append(epoch_time)
+            history['samples_per_second'].append(samples_per_second)
+
             current_lr = self.optimizer.param_groups[0]['lr']
             print(f"Train Loss: {train_metrics['loss']:.4f}, Train PSNR: {train_metrics['psnr']:.2f}dB")
             print(f"Val Loss: {val_metrics['loss']:.4f}, Val PSNR: {val_metrics['psnr']:.2f}dB, Val SSIM: {val_metrics['ssim']:.3f}")
-            print(f"LR: {current_lr:.2e}, Time: {epoch_time:.1f}s")
+            print(f"LR: {current_lr:.2e}, Time: {epoch_time:.1f}s, Samples/s: {samples_per_second:.1f}")
+
+            if self.metrics_logger:
+                self.metrics_logger({
+                    'epoch': epoch + 1,
+                    'train_loss': train_metrics['loss'],
+                    'train_psnr': train_metrics['psnr'],
+                    'val_loss': val_metrics['loss'],
+                    'val_psnr': val_metrics['psnr'],
+                    'val_ssim': val_metrics['ssim'],
+                    'lr': current_lr,
+                    'epoch_time': epoch_time,
+                    'samples_per_second': samples_per_second
+                })
 
             # Save best model based on validation PSNR
             if val_metrics['psnr'] > best_val_psnr:

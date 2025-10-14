@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent / 'src'))
 
 import numpy as np
+from typing import Optional, Dict, Any
 from data.clean_chart_generator import CleanChartGenerator
 from data.dataset_builder import DatasetBuilder
 from data.blur_generator import BlurGenerator
@@ -767,9 +768,24 @@ def generate_dataset(num_samples: int = 10, output_dir: str = "linefuse_dataset"
     return True
 
 
-def train_model(dataset_path: str, model_type: str = "unet",
-                difficulty: str = "easy", epochs: int = 50,
-                batch_size: int = 8, learning_rate: float = 1e-4):
+def train_model(dataset_path: str,
+                model_type: str = "unet",
+                difficulty: str = "easy",
+                epochs: int = 50,
+                batch_size: int = 8,
+                learning_rate: float = 1e-4,
+                use_lora: bool = False,
+                lora_rank: int = 16,
+                lora_alpha: float = 32.0,
+                lora_dropout: float = 0.1,
+                lora_module_filters: Optional[str] = None,
+                precision_mode: str = "float16",
+                gradient_accumulation: int = 1,
+                max_grad_norm: float = 1.0,
+                hybrid_unfreeze: Optional[str] = None,
+                metrics_json_path: Optional[str] = None,
+                scheduler_type: str = "ddim",
+                validation_inference_steps: int = 20):
     """训练去模糊模型"""
     print(f"=== LineFuse 模型训练 ===")
     print(f"数据集: {dataset_path}")
@@ -785,6 +801,8 @@ def train_model(dataset_path: str, model_type: str = "unet",
         from torch.utils.data import DataLoader
         from pathlib import Path
         import logging
+        import json
+        import time
 
         # 设置设备
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -861,19 +879,58 @@ def train_model(dataset_path: str, model_type: str = "unet",
         print(f"验证集: {len(val_dataset)} 图像对")
 
         # 创建模型
+        # 根据 precision_mode 决定是否启用混合精度
+        precision_mode = precision_mode.lower()
+        if precision_mode not in ("float16", "bfloat16", "fp32"):
+            raise ValueError(f"Unsupported precision mode: {precision_mode}")
+        mixed_precision_enabled = precision_mode != "fp32"
+        precision_dtype = precision_mode if mixed_precision_enabled else "float16"
+        scheduler_type = scheduler_type.lower()
+        if scheduler_type not in ("ddim", "ddpm"):
+            raise ValueError(f"Unsupported scheduler type: {scheduler_type}")
+
+        # 解析 LoRA 相关配置
+        lora_filters = []
+        if lora_module_filters:
+            lora_filters = [m.strip() for m in lora_module_filters.split(',') if m.strip()]
+        if not lora_filters and use_lora:
+            lora_filters = ['mid_block', 'up_blocks.2', 'up_blocks.3']
+
         if model_type == "unet":
             model = UNetBaseline(in_channels=3, out_channels=3)
             print(f"✓ 创建U-Net模型")
             print(f"模型参数量: {model.get_model_size():,}")
         elif model_type == "diffusion":
-            from src.models.diffusion_model import ConditionalDiffusionModel
-            model = ConditionalDiffusionModel(
-                in_channels=3,
-                out_channels=3,
-                sample_size=512,
-                num_train_timesteps=1000
-            )
-            print(f"✓ 创建条件扩散模型")
+            if use_lora:
+                from src.models.lora_diffusion import LoRAConditionalDiffusionModel
+                lora_config = {
+                    'rank': lora_rank,
+                    'alpha': lora_alpha,
+                    'dropout': lora_dropout,
+                    'module_filters': lora_filters or ['mid_block', 'up_blocks.2', 'up_blocks.3'],
+                    'target_modules': ['to_q', 'to_v', 'to_k', 'to_out']
+                }
+                model = LoRAConditionalDiffusionModel(
+                    in_channels=3,
+                    out_channels=3,
+                    sample_size=512,
+                    num_train_timesteps=1000,
+                    scheduler_type=scheduler_type,
+                    lora_config=lora_config,
+                    use_lora=True
+                )
+                print(f"✓ 创建LoRA条件扩散模型 (rank={lora_rank}, alpha={lora_alpha}, scheduler={scheduler_type.upper()})")
+            else:
+                from src.models.diffusion_model import ConditionalDiffusionModel
+                model = ConditionalDiffusionModel(
+                    in_channels=3,
+                    out_channels=3,
+                    sample_size=512,
+                    num_train_timesteps=1000,
+                    scheduler_type=scheduler_type
+                )
+                print(f"✓ 创建条件扩散模型 (scheduler={scheduler_type.upper()})")
+
             print(f"模型参数量: {model.get_model_size():,}")
         else:
             print(f"✗ 不支持的模型类型: {model_type}")
@@ -885,14 +942,74 @@ def train_model(dataset_path: str, model_type: str = "unet",
         scheduler = create_scheduler(optimizer, 'cosine', epochs)
 
         # 创建训练器
+        # 解析 Hybrid LoRA 解冻策略
+        hybrid_strategy = None
+        if use_lora:
+            from src.models.lora_adapter import HybridLoRAStrategy
+
+            def parse_schedule(schedule_str: Optional[str]) -> Dict[int, list]:
+                schedule: Dict[int, list] = {}
+                if not schedule_str:
+                    return schedule
+                for segment in schedule_str.split(','):
+                    if ':' not in segment:
+                        continue
+                    epoch_part, modules_part = segment.split(':', 1)
+                    try:
+                        epoch_idx = int(epoch_part.strip())
+                    except ValueError:
+                        continue
+                    modules = [m.strip() for m in modules_part.replace('|', ',').split(',') if m.strip()]
+                    if modules:
+                        schedule[epoch_idx] = modules
+                return schedule
+
+            schedule_config = parse_schedule(hybrid_unfreeze)
+            if not schedule_config:
+                # 默认策略：中后期逐步解冻
+                mid_epoch = min(epochs, max(1, epochs // 2))
+                late_epoch = min(epochs, max(1, epochs - max(5, epochs // 4)))
+                if late_epoch <= mid_epoch:
+                    late_epoch = min(epochs, mid_epoch + max(1, epochs // 5) if epochs > 1 else epochs)
+
+                schedule_config = {
+                    mid_epoch: ['mid_block'],
+                    late_epoch: ['up_blocks.2', 'up_blocks.3']
+                }
+
+            hybrid_strategy = HybridLoRAStrategy(
+                total_epochs=epochs,
+                unfreeze_schedule=schedule_config
+            )
+
+        # 构建指标记录函数
+        metrics_logger = None
+        if metrics_json_path:
+            metrics_path = Path(metrics_json_path)
+            metrics_path.parent.mkdir(parents=True, exist_ok=True)
+
+            def _metrics_logger(payload: Dict[str, Any]) -> None:
+                payload = dict(payload)
+                payload['timestamp'] = time.time()
+                with metrics_path.open('a', encoding='utf-8') as fp:
+                    fp.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+            metrics_logger = _metrics_logger
+
         trainer = ModelTrainer(
             model=model,
             loss_fn=loss_fn,
             optimizer=optimizer,
             scheduler=scheduler,
             device=device,
-            mixed_precision=True,
-            use_multi_gpu=True  # 🚀 启用多GPU训练
+            mixed_precision=mixed_precision_enabled,
+            precision_dtype=precision_dtype,
+            use_multi_gpu=True,  # 🚀 启用多GPU训练
+            gradient_accumulation_steps=gradient_accumulation,
+            max_grad_norm=max_grad_norm,
+            hybrid_lora_strategy=hybrid_strategy,
+            metrics_logger=metrics_logger,
+            validation_inference_steps=validation_inference_steps
         )
 
         # 设置保存目录
@@ -981,6 +1098,32 @@ def main():
                              help='批次大小 (默认: 8)')
     train_parser.add_argument('--lr', type=float, default=1e-4,
                              help='学习率 (默认: 1e-4)')
+    train_parser.add_argument('--use-lora', action='store_true',
+                             help='在扩散模型中启用LoRA微调')
+    train_parser.add_argument('--lora-rank', type=int, default=16,
+                             help='LoRA rank (默认: 16)')
+    train_parser.add_argument('--lora-alpha', type=float, default=32.0,
+                             help='LoRA alpha 缩放 (默认: 32)')
+    train_parser.add_argument('--lora-dropout', type=float, default=0.1,
+                             help='LoRA dropout 概率 (默认: 0.1)')
+    train_parser.add_argument('--lora-modules', type=str,
+                             help='逗号分隔的模块过滤器 (例如: mid_block,up_blocks.2)')
+    train_parser.add_argument('--precision', type=str, default='float16',
+                             choices=['float16', 'bfloat16', 'fp32'],
+                             help='训练精度模式 (默认: float16)')
+    train_parser.add_argument('--grad-accum', type=int, default=1,
+                             help='梯度累积步数 (默认: 1)')
+    train_parser.add_argument('--max-grad-norm', type=float, default=1.0,
+                             help='梯度裁剪阈值 (<=0 表示禁用)')
+    train_parser.add_argument('--hybrid-unfreeze', type=str,
+                             help='Hybrid LoRA 解冻策略，格式: 10:mid_block,20:up_blocks.2|up_blocks.3')
+    train_parser.add_argument('--metrics-json', type=str,
+                             help='将训练指标写入指定 JSONL 文件')
+    train_parser.add_argument('--scheduler-type', type=str, default='ddim',
+                             choices=['ddim', 'ddpm'],
+                             help='扩散调度器类型 (默认: ddim)')
+    train_parser.add_argument('--val-steps', type=int, default=20,
+                             help='验证阶段采样步数 (默认: 20)')
 
     # 快速演示命令
     demo_parser = subparsers.add_parser('demo', help='快速演示 (10个样本)')
@@ -1010,7 +1153,19 @@ def main():
             difficulty=args.difficulty,
             epochs=args.epochs,
             batch_size=args.batch_size,
-            learning_rate=args.lr
+            learning_rate=args.lr,
+            use_lora=args.use_lora,
+            lora_rank=args.lora_rank,
+            lora_alpha=args.lora_alpha,
+            lora_dropout=args.lora_dropout,
+            lora_module_filters=args.lora_modules,
+            precision_mode=args.precision,
+            gradient_accumulation=args.grad_accum,
+            max_grad_norm=args.max_grad_norm,
+            hybrid_unfreeze=args.hybrid_unfreeze,
+            metrics_json_path=args.metrics_json,
+            scheduler_type=args.scheduler_type,
+            validation_inference_steps=args.val_steps
         )
     elif args.command == 'demo':
         create_comprehensive_blur_demo()
